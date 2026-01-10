@@ -85,10 +85,17 @@ def main():
     master = read_master_tickers()  # both markets universe 
     sc = Screener()
     sid = pick_screener_id()
+    
+    print("Using sid:", sid)
+    print("sid available:", sid in set(Screener().available_screeners))
+
 
     # Pull up to 1000 rows from the screener
     payload = sc.get_screeners([sid], count=1000)
 
+    print("payload type:", type(payload))
+    print("payload keys (if dict):", list(payload.keys())[:10] if isinstance(payload, dict) else "n/a")
+    
     # Debug + fix when payload comes back as a string
     if isinstance(payload, str):
         print("Screener payload is STRING. First 500 chars:")
@@ -98,7 +105,11 @@ def main():
         except Exception:
             raise RuntimeError(f"Screener returned a string (not JSON). Message:\n{payload}")
 
-    quotes = payload.get(sid, {}).get("quotes", [])
+    block = payload.get(sid, {})
+    if isinstance(block, str):
+        raise RuntimeError(f"Screener '{sid}' returned a string:\n{block[:500]}")
+    quotes = (block or {}).get("quotes", [])
+
     df = pd.DataFrame(quotes)
 
     print("Rows returned:", len(df))
