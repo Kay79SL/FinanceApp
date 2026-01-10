@@ -121,7 +121,6 @@ def load_master_tickers_file() -> list[str]:
     except Exception:
         return []
 
-
 def save_master_tickers_file(tickers: list[str]) -> None:
     ensure_parent_dir(TICKERS_MASTER_CSV)
     out = normalize_ticker_list(tickers)
@@ -699,7 +698,7 @@ page1_ui = ui.page_fluid(
             width=300,
         ),
 
-        # ✅ MAIN AREA
+        # MAIN AREA
         ui.div(
             ui.card(
                 ui.h4("Investment Preview"),
@@ -821,11 +820,15 @@ page3_ui = ui.page_fluid(
                 multiple=True,
                 options={"placeholder": "Select tickers...", "create": True, "persist": False},
             ),
-            ui.input_text(
+            ui.input_selectize( # adding option to filter top100 table
                 "company_filter",
-                "Filter Top100 Companies table",
-                placeholder="Type ticker e.g. LLY, AMD...",
+                "Filter Top100 companies table",
+                choices=[],          # filled from CSV 
+                selected="",
+                multiple=False,
+                options={"placeholder": "All (type ticker e.g. LLY, AMD...)", "create": False},
             ),
+
             ui.hr(),
             ui.input_action_button("export_chart_csv", "Export chart data to CSV"),
             ui.output_text("export_status"),
@@ -843,16 +846,9 @@ page3_ui = ui.page_fluid(
             height="900px",
         ),
         ui.card(
-        ui.h4("Top 100 Companies list"),
-        ui.layout_columns(
-            ui.div(ui.output_data_frame("top100_table")),
-            ui.div(
-                ui.h4("Company Detail Info"),
-                ui.output_data_frame("company_detail_table"),
-            ),
-            col_widths=(6, 6),
-        ),
-        height="520px",
+            ui.h4("Top 100 Companies list"),
+            ui.output_data_frame("top100_table"),
+            height="520px",
         ),
  
     ),
@@ -994,7 +990,22 @@ def server(input, output, session):
         _HIST_CLOSE_CACHE.clear()
         refresh_token.set(refresh_token.get() + 1)
         refresh_msg.set(f"Last refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        
+     
+    @reactive.effect
+    def _fill_company_filter_choices():
+        _ = refresh_token.get()  # refresh updates choices too
+        try:
+            df0 = pd.read_csv(TOP100_CSV)
+            if df0.empty or "Ticker" not in df0.columns:
+                return
+            choices = sorted(
+                df0["Ticker"].astype(str).str.upper().str.strip().dropna().unique().tolist()
+            )
+            ui.update_selectize("company_filter", choices=choices)
+        except Exception:
+            pass
+ 
+       
     @reactive.effect
     def _update_sum_ticker_choices():
         _ = refresh_token.get()
@@ -1631,7 +1642,7 @@ def server(input, output, session):
         return fig
 
     # =======================
-    # Page 3: Top100 table + DAILY chart + DEBUG
+    # Page 3: Top100 table + DAILY chart
     # =======================
     @reactive.calc
     def chart_prices_df() -> pd.DataFrame:
@@ -1727,127 +1738,92 @@ def server(input, output, session):
     def top100_table():
         _ = refresh_token.get()
 
-        # 1) Read the new cached screener CSV (top_1000CSV.csv)
         try:
             df = pd.read_csv(TOP100_CSV)
         except Exception:
-            return pd.DataFrame({"Info": ["Top CSV not found (or empty). Check file path."]})
+            return render.DataGrid(
+                pd.DataFrame({"Info": ["Top CSV not found (or empty). Check file path."]}),
+                filters=False
+            )
 
         if df is None or df.empty:
-            return pd.DataFrame({"Info": ["Top CSV not found (or empty). Check file path."]})
+            return render.DataGrid(
+                pd.DataFrame({"Info": ["Top CSV not found (or empty). Check file path."]}),
+                filters=False
+            )
 
-        # 2) Normalize ticker column (your script outputs "Ticker")
+        # Ensure ticker col
         if "Ticker" not in df.columns:
-            # fallback if something changed
-            maybe = [c for c in df.columns if c.lower() == "ticker" or c.lower() == "symbol"]
+            maybe = [c for c in df.columns if c.lower() in ("ticker", "symbol")]
             if maybe:
                 df = df.rename(columns={maybe[0]: "Ticker"})
             else:
-                return pd.DataFrame({"Info": ["Ticker column not found in CSV."]})
+                return render.DataGrid(pd.DataFrame({"Info": ["Ticker column not found in CSV."]}), filters=False)
 
         df["Ticker"] = df["Ticker"].astype(str).str.upper().str.strip()
 
-        # 3) Filter box: "Filter Top100 companies table"
-        q = (input.company_filter() or "").strip().lower()
+        # Filter box
+        q = (input.company_filter() or "").strip().upper()
         if q:
-            df = df[df["Ticker"].astype(str).str.lower().str.contains(q, na=False)].copy()
+            df = df[df["Ticker"].astype(str).str.upper() == q].copy()
+
 
         if df.empty:
-            return pd.DataFrame({"Info": ["No matching tickers for this filter."]})
+            return render.DataGrid(pd.DataFrame({"Info": ["No matching tickers for this filter."]}), filters=False)
 
-        # 4) Enrich details via yfinance for first N rows only (keeps UI responsive)
-        tickers = df["Ticker"].astype(str).str.upper().tolist()
-        n = len(tickers)
-
-        # keep responsive (increase if you want, but yfinance info can be slow)
-        N = min(20, n)
-
-        names = [""] * n
-        countries = [""] * n
-        sectors = [""] * n
-        industries = [""] * n
-
-        mcaps = [np.nan] * n
-        pe_ttm = [np.nan] * n
-        pe_fwd = [np.nan] * n
-        div_y = [np.nan] * n
-        hi_52 = [np.nan] * n
-        lo_52 = [np.nan] * n
-        beta = [np.nan] * n
-
-        for i in range(N):
-            t = tickers[i]
-            try:
-                info = yf.Ticker(t).info or {}
-            except Exception:
-                info = {}
-
-            names[i] = info.get("shortName") or info.get("longName") or ""
-            countries[i] = info.get("country") or ""
-            sectors[i] = info.get("sector") or ""
-            industries[i] = info.get("industry") or ""
-
-            mcaps[i] = as_float(info.get("marketCap"), np.nan)
-            pe_ttm[i] = as_float(info.get("trailingPE"), np.nan)
-            pe_fwd[i] = as_float(info.get("forwardPE"), np.nan)
-            div_y[i] = as_float(info.get("dividendYield"), np.nan) * 100.0 if info.get("dividendYield") is not None else np.nan
-            hi_52[i] = as_float(info.get("fiftyTwoWeekHigh"), np.nan)
-            lo_52[i] = as_float(info.get("fiftyTwoWeekLow"), np.nan)
-            beta[i] = as_float(info.get("beta"), np.nan)
-
-        # 5) Add columns (only first N rows filled; rest remain blank/NaN)
-        df["Name (yfinance)"] = names
-        df["Country (yfinance)"] = countries
-        df["Sector"] = sectors
-        df["Industry"] = industries
-
-        df["Market Cap (yfinance)"] = pd.to_numeric(pd.Series(mcaps, index=df.index), errors="coerce").round(0)
-        df["P/E (TTM)"] = pd.to_numeric(pd.Series(pe_ttm, index=df.index), errors="coerce").round(2)
-        df["Forward P/E"] = pd.to_numeric(pd.Series(pe_fwd, index=df.index), errors="coerce").round(2)
-        df["Dividend Yield %"] = pd.to_numeric(pd.Series(div_y, index=df.index), errors="coerce").round(2)
-        df["52W High"] = pd.to_numeric(pd.Series(hi_52, index=df.index), errors="coerce").round(2)
-        df["52W Low"] = pd.to_numeric(pd.Series(lo_52, index=df.index), errors="coerce").round(2)
-        df["Beta"] = pd.to_numeric(pd.Series(beta, index=df.index), errors="coerce").round(2)
-
-        # 6) Column order: keep your screener CSV columns first if they exist
+        df = df.drop(columns=["Region"], errors="ignore")
+        
+        # Keep key columns first
         screener_cols = [
-            "AsOf",
-            "Ticker",
-            "Name",
-            "Country",
-            "Price",
-            "Change",
-            "Change %",
-            "Volume",
-            "Market cap",
-            "52 week price % Change",
-            "Region",
+            "AsOf", "Ticker", "Name", "Country", "Price", "Change", "Change %",
+            "Volume", "Market cap", "52 week price % Change"
         ]
-        extras = [
-            "Name (yfinance)",
-            "Country (yfinance)",
-            "Sector",
-            "Industry",
-            "Market Cap (yfinance)",
-            "P/E (TTM)",
-            "Forward P/E",
-            "Dividend Yield %",
-            "52W High",
-            "52W Low",
-            "Beta",
-        ]
-
         base_cols = [c for c in screener_cols if c in df.columns]
-        extra_cols = [c for c in extras if c in df.columns]
-        remaining = [c for c in df.columns if c not in base_cols + extra_cols]
+        remaining = [c for c in df.columns if c not in base_cols]
+        df = df[base_cols + remaining]
 
-        df = df[base_cols + extra_cols + remaining]
+        # ---------- Numeric helpers (for formatting + coloring) ----------
+        change_num = pd.to_numeric(df["Change"], errors="coerce") if "Change" in df.columns else pd.Series([np.nan] * len(df), index=df.index)
+        change_pct_num = pd.to_numeric(df["Change %"], errors="coerce") if "Change %" in df.columns else pd.Series([np.nan] * len(df), index=df.index)
 
-        return df
+        vol_num = pd.to_numeric(df["Volume"], errors="coerce") if "Volume" in df.columns else pd.Series([np.nan] * len(df), index=df.index)
+        mcap_num = pd.to_numeric(df["Market cap"], errors="coerce") if "Market cap" in df.columns else pd.Series([np.nan] * len(df), index=df.index)
+
+        # ---------- Format Volume to M, Market cap to B ----------
+        if "Volume" in df.columns:
+            df["Volume"] = (vol_num / 1_000_000.0).map(lambda x: f"{x:,.2f}M" if pd.notna(x) else "")
+
+        if "Market cap" in df.columns:
+            df["Market cap"] = (mcap_num / 1_000_000_000.0).map(lambda x: f"{x:,.2f}B" if pd.notna(x) else "")
+
+        # ---------- Conditional font colors ----------
+        styles = []
+
+        if "Change" in df.columns:
+            change_col_idx = list(df.columns).index("Change")
+            pos_rows = change_num[change_num > 0].index.to_list()
+            neg_rows = change_num[change_num < 0].index.to_list()
+
+            if pos_rows:
+                styles.append({"rows": pos_rows, "cols": [change_col_idx], "style": {"color": "#1b7f3a", "fontWeight": "700"}})
+            if neg_rows:
+                styles.append({"rows": neg_rows, "cols": [change_col_idx], "style": {"color": "#b00020", "fontWeight": "700"}})
+
+        if "Change %" in df.columns:
+            pct_col_idx = list(df.columns).index("Change %")
+            pos_rows = change_pct_num[change_pct_num > 0].index.to_list()
+            neg_rows = change_pct_num[change_pct_num < 0].index.to_list()
+
+            if pos_rows:
+                styles.append({"rows": pos_rows, "cols": [pct_col_idx], "style": {"color": "#1b7f3a", "fontWeight": "700"}})
+            if neg_rows:
+                styles.append({"rows": neg_rows, "cols": [pct_col_idx], "style": {"color": "#b00020", "fontWeight": "700"}})
+
+        return render.DataGrid(df, filters=False, styles=styles)
 
 
 
-   
+           
     @output
     @render_plotly
     def price_5y_plot():
@@ -1906,7 +1882,12 @@ def server(input, output, session):
             yaxis_title="Share price ($)",
             legend_title_text="Ticker",
             hovermode="x unified",
+
+            #remove background
+            plot_bgcolor="rgba(0,0,0,0)",   # inside plot area
+            paper_bgcolor="rgba(0,0,0,0)",  # outside plot area
         )
+
         fig.update_xaxes(type="date", rangeslider=dict(visible=True))
         return fig
     
