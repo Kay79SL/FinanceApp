@@ -91,7 +91,7 @@ def main():
 
 
     # Pull up to 1000 rows from the screener
-    payload = sc.get_screeners([sid], count=1000)
+    payload = sc.get_screeners([sid], count=50)
 
     print("payload type:", type(payload))
     print("payload keys (if dict):", list(payload.keys())[:10] if isinstance(payload, dict) else "n/a")
