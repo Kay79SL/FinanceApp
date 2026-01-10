@@ -2,7 +2,7 @@ name: Refresh Top Companies CSV
 
 on:
   schedule:
-    - cron: "15 6 * * *"   # daily 06:15 UTC
+    - cron: "15 6,16 * * *"   # daily 06:15 UTC
   workflow_dispatch:
 
 permissions:
