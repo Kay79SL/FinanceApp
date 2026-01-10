@@ -37,8 +37,11 @@ def color_to_rgba(c: str, alpha: float = 0.5) -> str:
 # ===========================
 APP_NAME = "MyFinanceApp"
 
-TOP100_CSV = r"F:\Apps\App1\Top100\top100_6m_over_50usd.csv"
-TICKERS_MASTER_CSV = r"F:\Apps\App1\Config\master_tickers.csv"
+BASE_DIR = Path(__file__).resolve().parent
+DATA_DIR = BASE_DIR / "data"
+
+TOP100_CSV = str(DATA_DIR / "top_1000CSV.csv")          # your Top200 cache file
+TICKERS_MASTER_CSV = str(DATA_DIR / "master_tickers.csv")
 
 DIVIDEND_YIELD_ASSUMPTION = 0.03  # for projections only 
 DEFAULT_MASTER_TICKERS = ["LLY", "ABT", "ABBV"]
