@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from datetime import datetime
 import pandas as pd
-
+import json
 from yahooquery import Screener, Ticker
 
 
@@ -88,8 +88,21 @@ def main():
 
     # Pull up to 1000 rows from the screener
     payload = sc.get_screeners([sid], count=1000)
+
+    # Debug + fix when payload comes back as a string
+    if isinstance(payload, str):
+        print("Screener payload is STRING. First 500 chars:")
+        print(payload[:500])
+        try:
+            payload = json.loads(payload)  # if it's JSON text
+        except Exception:
+            raise RuntimeError(f"Screener returned a string (not JSON). Message:\n{payload}")
+
     quotes = payload.get(sid, {}).get("quotes", [])
     df = pd.DataFrame(quotes)
+
+    print("Rows returned:", len(df))
+    print("Columns:", list(df.columns)[:30])
 
     if df.empty:
         raise RuntimeError(f"No data returned from screener '{sid}'")
