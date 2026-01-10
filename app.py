@@ -1726,19 +1726,40 @@ def server(input, output, session):
     @render.data_frame
     def top100_table():
         _ = refresh_token.get()
-        df = safe_load_top100(TOP100_CSV)
-        if df.empty:
-            return pd.DataFrame({"Info": ["Top100 CSV not found (or empty). Check file path."]})
 
-        # same filter input ("Filter Top100 companies table")
+        # 1) Read the new cached screener CSV (top_1000CSV.csv)
+        try:
+            df = pd.read_csv(TOP100_CSV)
+        except Exception:
+            return pd.DataFrame({"Info": ["Top CSV not found (or empty). Check file path."]})
+
+        if df is None or df.empty:
+            return pd.DataFrame({"Info": ["Top CSV not found (or empty). Check file path."]})
+
+        # 2) Normalize ticker column (your script outputs "Ticker")
+        if "Ticker" not in df.columns:
+            # fallback if something changed
+            maybe = [c for c in df.columns if c.lower() == "ticker" or c.lower() == "symbol"]
+            if maybe:
+                df = df.rename(columns={maybe[0]: "Ticker"})
+            else:
+                return pd.DataFrame({"Info": ["Ticker column not found in CSV."]})
+
+        df["Ticker"] = df["Ticker"].astype(str).str.upper().str.strip()
+
+        # 3) Filter box: "Filter Top100 companies table"
         q = (input.company_filter() or "").strip().lower()
         if q:
             df = df[df["Ticker"].astype(str).str.lower().str.contains(q, na=False)].copy()
 
+        if df.empty:
+            return pd.DataFrame({"Info": ["No matching tickers for this filter."]})
+
+        # 4) Enrich details via yfinance for first N rows only (keeps UI responsive)
         tickers = df["Ticker"].astype(str).str.upper().tolist()
         n = len(tickers)
 
-        # keep responsive (increase if you want)
+        # keep responsive (increase if you want, but yfinance info can be slow)
         N = min(20, n)
 
         names = [""] * n
@@ -1746,7 +1767,7 @@ def server(input, output, session):
         sectors = [""] * n
         industries = [""] * n
 
-        mcaps = [0.0] * n
+        mcaps = [np.nan] * n
         pe_ttm = [np.nan] * n
         pe_fwd = [np.nan] * n
         div_y = [np.nan] * n
@@ -1766,21 +1787,21 @@ def server(input, output, session):
             sectors[i] = info.get("sector") or ""
             industries[i] = info.get("industry") or ""
 
-            mcaps[i] = as_float(info.get("marketCap"), 0.0)
+            mcaps[i] = as_float(info.get("marketCap"), np.nan)
             pe_ttm[i] = as_float(info.get("trailingPE"), np.nan)
             pe_fwd[i] = as_float(info.get("forwardPE"), np.nan)
-            div_y[i] = as_float(info.get("dividendYield"), np.nan) * 100.0
+            div_y[i] = as_float(info.get("dividendYield"), np.nan) * 100.0 if info.get("dividendYield") is not None else np.nan
             hi_52[i] = as_float(info.get("fiftyTwoWeekHigh"), np.nan)
             lo_52[i] = as_float(info.get("fiftyTwoWeekLow"), np.nan)
             beta[i] = as_float(info.get("beta"), np.nan)
 
-        # adding detail columns into the same table
-        df["Name"] = names
-        df["Country"] = countries
+        # 5) Add columns (only first N rows filled; rest remain blank/NaN)
+        df["Name (yfinance)"] = names
+        df["Country (yfinance)"] = countries
         df["Sector"] = sectors
         df["Industry"] = industries
 
-        df["Market Cap"] = pd.to_numeric(pd.Series(mcaps, index=df.index), errors="coerce").fillna(0.0).round(0)
+        df["Market Cap (yfinance)"] = pd.to_numeric(pd.Series(mcaps, index=df.index), errors="coerce").round(0)
         df["P/E (TTM)"] = pd.to_numeric(pd.Series(pe_ttm, index=df.index), errors="coerce").round(2)
         df["Forward P/E"] = pd.to_numeric(pd.Series(pe_fwd, index=df.index), errors="coerce").round(2)
         df["Dividend Yield %"] = pd.to_numeric(pd.Series(div_y, index=df.index), errors="coerce").round(2)
@@ -1788,14 +1809,42 @@ def server(input, output, session):
         df["52W Low"] = pd.to_numeric(pd.Series(lo_52, index=df.index), errors="coerce").round(2)
         df["Beta"] = pd.to_numeric(pd.Series(beta, index=df.index), errors="coerce").round(2)
 
-        # (Optional) reorder columns: original first, then details
-        base_cols = [c for c in ["Ticker", "Price Now", "Price 6M Ago", "Return 6M %"] if c in df.columns]
-        extra_cols = ["Name", "Country", "Sector", "Industry", "Market Cap", "P/E (TTM)", "Forward P/E",
-                    "Dividend Yield %", "52W High", "52W Low", "Beta"]
-        cols = base_cols + [c for c in extra_cols if c in df.columns] + [c for c in df.columns if c not in base_cols + extra_cols]
-        df = df[cols]
+        # 6) Column order: keep your screener CSV columns first if they exist
+        screener_cols = [
+            "AsOf",
+            "Ticker",
+            "Name",
+            "Country",
+            "Price",
+            "Change",
+            "Change %",
+            "Volume",
+            "Market cap",
+            "52 week price % Change",
+            "Region",
+        ]
+        extras = [
+            "Name (yfinance)",
+            "Country (yfinance)",
+            "Sector",
+            "Industry",
+            "Market Cap (yfinance)",
+            "P/E (TTM)",
+            "Forward P/E",
+            "Dividend Yield %",
+            "52W High",
+            "52W Low",
+            "Beta",
+        ]
+
+        base_cols = [c for c in screener_cols if c in df.columns]
+        extra_cols = [c for c in extras if c in df.columns]
+        remaining = [c for c in df.columns if c not in base_cols + extra_cols]
+
+        df = df[base_cols + extra_cols + remaining]
 
         return df
+
 
 
    
