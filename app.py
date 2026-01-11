@@ -414,11 +414,11 @@ def compute_ticker_investment_values(entries: list[dict], as_of: datetime) -> di
 
 
 # Projecting price and value for 2040
- """
-    Total predicted value in 2040 using:
-      ProjectedPrice(2040) = PurchasePrice * (1 + CAGR_asof)^(2040 - PurchaseYear)
-      ProjectedValue(2040) = Shares * ProjectedPrice(2040)
-    """
+"""
+Total predicted value in 2040 using:
+ProjectedPrice(2040) = PurchasePrice * (1 + CAGR_asof)^(2040 - PurchaseYear)
+ProjectedValue(2040) = Shares * ProjectedPrice(2040)
+"""
 
 def compute_predicted_total_2040(entries: list[dict], as_of: datetime) -> float:
    
