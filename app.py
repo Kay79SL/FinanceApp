@@ -12,6 +12,7 @@ from shinywidgets import output_widget, render_plotly
 import plotly.express as px
 import re
 
+#==========================
 
 def color_to_rgba(c: str, alpha: float = 0.5) -> str:
     """Convert '#RRGGBB', 'rgb(r,g,b)', or 'rgba(r,g,b,a)' to rgba(..., alpha)."""
