@@ -1895,21 +1895,29 @@ def server(input, output, session):
         remaining = [c for c in df.columns if c not in base_cols]
         df = df[base_cols + remaining]
 
-        # ---------- Numeric helpers (for formatting + coloring) ----------
+        #formating numeric columns
         change_num = pd.to_numeric(df["Change"], errors="coerce") if "Change" in df.columns else pd.Series([np.nan] * len(df), index=df.index)
         change_pct_num = pd.to_numeric(df["Change %"], errors="coerce") if "Change %" in df.columns else pd.Series([np.nan] * len(df), index=df.index)
+        wk52_pct_num = (
+            pd.to_numeric(
+                df["52 week price % Change"].astype(str).str.replace("%", "", regex=False),
+                errors="coerce"
+            )
+            if "52 week price % Change" in df.columns
+            else pd.Series([np.nan] * len(df), index=df.index)
+)
 
         vol_num = pd.to_numeric(df["Volume"], errors="coerce") if "Volume" in df.columns else pd.Series([np.nan] * len(df), index=df.index)
         mcap_num = pd.to_numeric(df["Market cap"], errors="coerce") if "Market cap" in df.columns else pd.Series([np.nan] * len(df), index=df.index)
 
-        # ---------- Format Volume to M, Market cap to B ----------
+        # formatting volume to M, Market cap to B ----------
         if "Volume" in df.columns:
             df["Volume"] = (vol_num / 1_000_000.0).map(lambda x: f"{x:,.2f}M" if pd.notna(x) else "")
 
         if "Market cap" in df.columns:
             df["Market cap"] = (mcap_num / 1_000_000_000.0).map(lambda x: f"{x:,.2f}B" if pd.notna(x) else "")
 
-        # ---------- Conditional font colors ----------
+        # Conditional font colors ----------
         styles = []
 
         if "Change" in df.columns:
@@ -1931,6 +1939,29 @@ def server(input, output, session):
                 styles.append({"rows": pos_rows, "cols": [pct_col_idx], "style": {"color": "#1b7f3a", "fontWeight": "700"}})
             if neg_rows:
                 styles.append({"rows": neg_rows, "cols": [pct_col_idx], "style": {"color": "#b00020", "fontWeight": "700"}})
+
+        if "52 week price % Change" in df.columns:
+            wk52_col_idx = list(df.columns).index("52 week price % Change")
+
+            # red if dropped (< 0)
+            neg_rows = wk52_pct_num[wk52_pct_num < 0].index.to_list()
+
+            # green if > 100%
+            huge_pos_rows = wk52_pct_num[wk52_pct_num > 100].index.to_list()
+
+            if huge_pos_rows:
+                styles.append({
+                    "rows": huge_pos_rows,
+                    "cols": [wk52_col_idx],
+                    "style": {"color": "#1b7f3a", "fontWeight": "800"}
+                })
+
+            if neg_rows:
+                styles.append({
+                    "rows": neg_rows,
+                    "cols": [wk52_col_idx],
+                    "style": {"color": "#b00020", "fontWeight": "800"}
+                })
 
         return render.DataGrid(df, filters=False, styles=styles)
 
