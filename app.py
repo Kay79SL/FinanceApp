@@ -521,15 +521,15 @@ def get_cagr_since_2010(ticker: str) -> float:
 # Returns both: (1) time series for charts, (2) summary row for tables
 # -------------------------------------------------------------------
 
- """
-    Simulate the value of a single investment (fixed number of shares)
-    from its purchase date to horizon_year using a constant CAGR
-    estimated from 2010.
 
-    Returns:
-    - df_years: DataFrame with columns [Ticker, Investment, Year, Value]
-    - summary: dict with aggregate metrics for the portfolio table
-    """
+#Simulate the value of a single investment (fixed number of shares)
+#from its purchase date to horizon_year using a constant CAGR
+#estimated from 2010.
+
+#Returns:
+#- df_years: DataFrame with columns [Ticker, Investment, Year, Value]
+#- summary: dict with aggregate metrics for the portfolio table
+   
 
 def simulate_investment(entry: dict, horizon_year: int):
     ticker = str(entry["Ticker"]).strip().upper()
