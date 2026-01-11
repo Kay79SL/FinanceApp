@@ -233,10 +233,10 @@ def dividends_to_date_cash_asof(ticker: str, purchase_date: datetime, shares: fl
 def compute_portfolio_kpis(entries: list[dict], as_of: datetime) -> dict:
     """
     Returns totals:
-      - total_investment: Σ shares * price(as_of)
-      - total_dividends: Σ dividends from purchase→as_of
-      - total_profit: Σ (capital_gain(as_of) - cgt(as_of) + tax_saved + espp + dividends)
-    Uses same CGT logic as your app: max(0, current_value*0.33 - 1070)
+      - total_investment: sum shares * price(as_of)
+      - total_dividends: sum dividends from purchase→as_of
+      - total_profit: sum (capital_gain(as_of) - cgt(as_of) + tax_saved + espp + dividends)
+    CGT logic: max(0, current_value*0.33 - 1070)
     """
     total_investment = 0.0
     total_dividends = 0.0
@@ -516,6 +516,7 @@ def simulate_investment(entry: dict, horizon_year: int):
 
     df_years = pd.DataFrame({"Ticker": ticker, "Investment": inv_name, "Year": years, "Value": values})
 
+    #Calculations 
     initial_value = shares * purchase_price
     price_today = get_price_on_date(ticker, datetime.today())
     price_today = as_float(price_today, default=purchase_price)
@@ -523,6 +524,8 @@ def simulate_investment(entry: dict, horizon_year: int):
     current_value_today = shares * price_today
     capital_gain_to_now = current_value_today - initial_value
     dividends_to_now = dividends_to_date_cash(ticker, purchase_date, shares)
+    gain = capital_gain_to_now
+    cgt_today = gain*0.33 - 1070.0
 
     tax_saved = 0.0
     espp_benefit = 0.0
@@ -531,7 +534,7 @@ def simulate_investment(entry: dict, horizon_year: int):
     elif inv_type == "ESPP":
         espp_benefit = initial_value * 0.15
 
-    cgt_today = max(0.0, (current_value_today * 0.33) - 1070.0)
+    #cgt_today = max(0.0, (current_value_today * 0.33) - 1070.0)
     total_income_to_now = (capital_gain_to_now - cgt_today) + tax_saved + espp_benefit + dividends_to_now
 
     summary = {
@@ -745,9 +748,9 @@ page2_ui = ui.page_fluid(
             width=300,
         ),
 
-        # ✅ MAIN AREA (everything that should be to the right of the sidebar)
+        # MAIN AREA (everything that should be to the right of the sidebar)
         ui.div(
-            # ✅ CSS can live here (or at app level) — now it's in the main area correctly
+            # CSS 
             ui.tags.style("""
 /* KPI ticker buttons (radio as pills) */
 #sum_ticker_btns .form-check { display:inline-block; margin-right: 8px; }
@@ -788,11 +791,11 @@ page2_ui = ui.page_fluid(
                 ui.h4("Investment Value by Ticker over time"),
                 ui.output_ui("sum_ticker_cards"),
                 output_widget("summary_timeline_plot"),
-                height="800px",
+                height="900px",
             ),
 
             ui.card(
-                ui.h4("Totals per Ticker (income calculated up to current year)"),
+                ui.h4("Totals per Ticker - Today"),
                 ui.output_data_frame("summary_table"),
                 height="260px",
             ),
@@ -1110,21 +1113,15 @@ def server(input, output, session):
     def timeline_plot():
         _ = refresh_token.get()
         data = portfolio.get()
+
         if not data:
-            fig = px.bar(title="")
-            fig.add_annotation(
-                text="Add an investment to start",
-                xref="paper",
-                yref="paper",
-                x=0.5,
-                y=0.5,
-                showarrow=False,
-            )
-            fig.update_xaxes(visible=False)
-            fig.update_yaxes(visible=False)
+            fig = go.Figure()
+            fig.update_layout(title="No data to display", height=400)
             return fig
 
         horizon_year = 2040
+
+        # build df_all (your original logic)
         all_rows = [simulate_investment(entry, horizon_year=horizon_year)[0] for entry in data]
         df_all = pd.concat(all_rows, ignore_index=True)
 
@@ -1146,6 +1143,7 @@ def server(input, output, session):
 
         df_all["PurchasePrice"] = df_all["Investment"].map(inv_to_pp).fillna(0.0)
 
+        # plot
         colors = palette_for_n(int(df_all["Investment"].nunique()))
         fig = px.bar(
             df_all,
@@ -1161,13 +1159,12 @@ def server(input, output, session):
         fig.update_layout(
             barmode="stack",
             height=720,
-            margin=dict(l=60, r=20, t=40, b=110),
+            margin=dict(l=60, r=20, t=80, b=110),  # extra top space for labels
             legend_title_text="Investment",
             plot_bgcolor="rgba(0,0,0,0)",
             paper_bgcolor="rgba(0,0,0,0)",
         )
 
-        # Hover: no decimals, show purchase price instead of Year
         fig.update_traces(
             hovertemplate="%{fullData.name}<br>Purchase price=€%{customdata[0]:,.0f}<br>Value=€%{y:,.0f}<extra></extra>"
         )
@@ -1182,9 +1179,29 @@ def server(input, output, session):
         )
         fig.update_yaxes(automargin=True)
 
+        # ===== totals per year labels above bars =====
+        totals = (
+            df_all.groupby("Year", as_index=False)["Value"]
+            .sum()
+            .sort_values("Year")
+        )
+
+        fig.add_trace(
+            go.Scatter(
+                x=totals["Year"],
+                y=totals["Value"],
+                mode="text",
+                text=[f"€{v/1000:.1f}k" for v in totals["Value"]],
+                textposition="top center",
+                showlegend=False,
+                hoverinfo="skip",
+            )
+        )
+
+        fig.update_yaxes(range=[0, float(totals["Value"].max()) * 1.15])
+
         return fig
 
-    
     
     @output
     @render.ui
@@ -1271,8 +1288,8 @@ def server(input, output, session):
         start = dr[0] if dr and dr[0] else None
         end = dr[1] if dr and dr[1] else None
 
-        # ✅ Investment type dropdown (new)
-        # "All" means no filtering
+        # Investment type dropdown
+        # "All" - no filtering
         try:
             type_sel = input.sum_type()
         except Exception:
@@ -1332,18 +1349,26 @@ def server(input, output, session):
         _ = refresh_token.get()
         data = filtered_portfolio_entries()
         if not data:
-            return render.DataGrid(pd.DataFrame({"Info": ["No matching investments. Adjust filters."]}), filters=False)
+            return render.DataGrid(pd.DataFrame({"Info": ["No matching investments. Adjust filters."]}), filters=False) #error info
 
         current_year = datetime.today().year
         summaries = [simulate_investment(entry, horizon_year=current_year)[1] for entry in data]
         df = pd.DataFrame(summaries)
-        df["Price Today"] = df["Ticker"].apply(lambda t: round(as_float(price_on_date_cached(t, datetime.today()), np.nan), 2))
 
-        num_cols = ["Shares", "Tax Saved", "ESPP 15% Benefit", "Dividends", "CGT Today", "Total Income Net"]
+        # price today per ticker
+        df["Price Today"] = df["Ticker"].apply(lambda t: as_float(price_on_date_cached(t, datetime.today()), np.nan))
+
+        # ensure numeric
+        num_cols = ["Shares", "Tax Saved", "ESPP 15% Benefit", "Dividends", "CGT Today", "Total Income Net", "Purchase Price", "Price Today"]
         for c in num_cols:
-            df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0.0)
+            if c in df.columns:
+                df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0.0)
 
+        # weighted purchase price helper
         df["_cost"] = df["Shares"] * df["Purchase Price"]
+
+        # ### NEW: current value per row (shares * price today)
+        df["_current_value"] = df["Shares"] * df["Price Today"]
 
         def inv_type_rollup(s: pd.Series) -> str:
             uniq = sorted({str(x) for x in s.dropna().tolist()})
@@ -1358,27 +1383,39 @@ def server(input, output, session):
                 Tax_Saved=("Tax Saved", "sum"),
                 ESPP_15_Benefit=("ESPP 15% Benefit", "sum"),
                 Dividends=("Dividends", "sum"),
-                CGT_Today=("CGT Today", "sum"),
+                #CGT_Today=("CGT Today", "sum"),
                 Total_Income=("Total Income Net", "sum"),
+                # total investment value today per ticker
+                Total_Inv=("_current_value", "sum"),
             )
         )
 
+        # CGT per ticker
+        gain = (agg["Total_Inv"] - agg["_cost"]).clip(lower=0.0)
+        agg["CGT Today"] = (gain * 0.33 - 1070.0).clip(lower=0.0)
+
+        # weighted avg purchase price
         agg["Purchase Price"] = np.where(agg["Shares"] > 0, agg["_cost"] / agg["Shares"], 0.0)
 
-        agg = agg.drop(columns=["_cost"]).rename(columns={
+        # droping columns
+        agg = agg.drop(columns=["_cost"]).rename(
+            columns={
             "Inv_Type": "Inv Type",
             "Tax_Saved": "Tax Saved",
             "ESPP_15_Benefit": "ESPP 15% Benefit",
             "CGT_Today": "CGT Today",
             "Total_Income": "Total Income Net",
+            "Total_Inv": "Total Inv",
         })
 
-        for c in ["Purchase Price", "Tax Saved", "ESPP 15% Benefit", "Dividends", "CGT Today", "Total Income Net"]:
-            agg[c] = agg[c].round(2)
+        # rounding to no decimals
+        for c in ["Purchase Price", "Shares", "Tax Saved", "ESPP 15% Benefit", "Dividends", "CGT Today", "Total Income Net", "Total Inv"]:
+            if c in agg.columns:
+                agg[c] = pd.to_numeric(agg[c], errors="coerce").fillna(0.0).round(0)
 
-
+        # adding Total Inv in the table
         return render.DataGrid(
-            agg[["Ticker","Shares","Inv Type","Tax Saved","ESPP 15% Benefit","Dividends","CGT Today","Total Income Net"]],
+            agg[["Ticker","Shares","Total Inv","Inv Type","Tax Saved","ESPP 15% Benefit","Dividends","CGT Today","Total Income Net"]],
             filters=False
         )
 
@@ -1581,48 +1618,54 @@ def server(input, output, session):
             ),
         )
 
-    
+
     @output
     @render_plotly
     def summary_timeline_plot():
         _ = refresh_token.get()
         data = filtered_portfolio_entries()
+
         if not data:
-            fig = px.bar(title="")
-            fig.update_xaxes(visible=False)
-            fig.update_yaxes(visible=False)
+            fig = go.Figure()
+            fig.update_layout(title="No data to display", height=400)
             return fig
 
         horizon_year = 2040
+
+        # build detailed rows
         all_rows = [simulate_investment(entry, horizon_year=horizon_year)[0] for entry in data]
         df_all = pd.concat(all_rows, ignore_index=True)
 
-        df_tick = df_all.groupby(["Year", "Ticker"], as_index=False)["Value"].sum()
+        if df_all.empty:
+            fig = go.Figure()
+            fig.update_layout(title="No data to plot", height=400)
+            return fig
 
-        # Weighted average purchase price per ticker (for hover)
-        cost = {}
-        sh = {}
+        # map Investment -> Ticker
+        inv_to_ticker = {}
         for e in data:
-            t = str(e.get("Ticker", "")).strip().upper()
-            shares = as_float(e.get("Shares"), 0.0)
-            pds = e.get("PurchaseDate")
-            try:
-                purchase_dt = datetime.fromisoformat(pds) if pds else datetime.today()
-            except Exception:
-                purchase_dt = datetime.today()
+            inv_name = str(e.get("InvestmentName", "")).strip()
+            tkr = str(e.get("Ticker", "")).strip().upper()
+            if inv_name:
+                inv_to_ticker[inv_name] = tkr
 
-            pp = e.get("PurchasePrice")
-            if pp is None or (isinstance(pp, float) and np.isnan(pp)):
-                pp = price_on_date_cached(t, purchase_dt)
+        df_all["Ticker"] = df_all["Investment"].map(inv_to_ticker)
 
-            pp = as_float(pp, 0.0)
-            cost[t] = cost.get(t, 0.0) + (shares * pp)
-            sh[t] = sh.get(t, 0.0) + shares
+        # group by Year + Ticker
+        df_tick = (
+            df_all.dropna(subset=["Ticker"])
+            .groupby(["Year", "Ticker"], as_index=False)["Value"]
+            .sum()
+        )
 
-        tkr_pp = {t: (cost[t] / sh[t] if sh[t] > 0 else 0.0) for t in sh.keys()}
-        df_tick["PurchasePrice"] = df_tick["Ticker"].map(tkr_pp).fillna(0.0)
+        if df_tick.empty:
+            fig = go.Figure()
+            fig.update_layout(title="No data to plot", height=400)
+            return fig
 
+        # plot
         colors = palette_for_n(int(df_tick["Ticker"].nunique()))
+
         fig = px.bar(
             df_tick,
             x="Year",
@@ -1631,15 +1674,52 @@ def server(input, output, session):
             color_discrete_sequence=colors,
             title="",
             labels={"Year": "Year", "Value": "Value (€)", "Ticker": "Ticker"},
-            custom_data=["PurchasePrice"],
         )
-        fig.update_layout(barmode="stack", legend_title_text="Ticker")
 
-        fig.update_traces(
-            hovertemplate="%{fullData.name}<br>Purchase price=€%{customdata[0]:,.0f}<br>Value=€%{y:,.0f}<extra></extra>"
+        fig.update_layout(
+            barmode="stack",
+            height=720,
+            margin=dict(l=60, r=20, t=80, b=110),
+            legend_title_text="Ticker",
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
         )
+
+        fig.update_xaxes(
+            tickmode="linear",
+            dtick=1,
+            automargin=True,
+        )
+
+        fig.update_yaxes(
+            tickformat=",~s",
+            automargin=True,
+        )
+
+        # adding totals above bars
+        totals = (
+            df_tick.groupby("Year", as_index=False)["Value"]
+            .sum()
+            .sort_values("Year")
+        )
+
+        fig.add_trace(
+            go.Scatter(
+                x=totals["Year"],
+                y=totals["Value"],
+                mode="text",
+                text=[f"€{v/1000:.1f}k" for v in totals["Value"]],
+                textposition="top center",
+                showlegend=False,
+                hoverinfo="skip",
+            )
+        )
+
+        fig.update_yaxes(range=[0, totals["Value"].max() * 1.15])
 
         return fig
+
+
 
     # =======================
     # Page 3: Top100 table + DAILY chart
