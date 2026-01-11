@@ -1518,10 +1518,14 @@ def server(input, output, session):
 
         now = datetime.today()
         days_30_ago = now - timedelta(days=30)
+        days_100_ago = now - timedelta(days=100)
+        days_180_ago = now - timedelta(days=180)
 
-        # ✅ same calculations as Page 1
+        # calculations for all tickers to set price diff
         now_by_ticker = compute_ticker_investment_values(entries, now)
         old_by_ticker = compute_ticker_investment_values(entries, days_30_ago)
+        old100_by_ticker = compute_ticker_investment_values(entries, days_100_ago)
+        old180_by_ticker = compute_ticker_investment_values(entries, days_180_ago)
 
         def fmt_money(x):
             return f"€{float(x):,.2f}"
@@ -1533,7 +1537,7 @@ def server(input, output, session):
                 return ui.tags.span("▲", style="color:#1b7f3a; font-weight:900; margin-right:6px;")
             return ui.tags.span("▼", style="color:#b00020; font-weight:900; margin-right:6px;")
 
-        # ✅ reuse the exact KPI CSS from Page 1
+        # KPI CSS  
         style = ui.tags.style("""
         .kpi-wrap { display:flex; gap:12px; margin: 8px 0 12px 0; flex-wrap:wrap; }
         .kpi-card { flex:1; min-width:240px; border:1px solid #e6e6e6; border-radius:12px; padding:10px 12px; background:#fafafa; }
@@ -1570,6 +1574,8 @@ def server(input, output, session):
                     title_line,
                     ui.tags.p(fmt_money(v_now), class_="kpi-value"),
                     ui.tags.p(ui.tags.span("vs 30 days ago"), delta_txt, class_="kpi-sub"),
+                    ui.tags.p(ui.tags.span("vs 100 days ago"), delta_txt, class_="kpi-sub"),
+                    ui.tags.p(ui.tags.span("vs 180 days ago"), delta_txt, class_="kpi-sub"),
                 )
             )
 
