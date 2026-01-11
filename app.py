@@ -791,7 +791,7 @@ page2_ui = ui.page_fluid(
                 ui.h4("Investment Value by Ticker over time"),
                 ui.output_ui("sum_ticker_cards"),
                 output_widget("summary_timeline_plot"),
-                height="900px",
+                height="1000px",
             ),
 
             ui.card(
@@ -1552,6 +1552,14 @@ def server(input, output, session):
             v_now = float(v_now)
             d = v_now - v_old
 
+            v_old30  = float(old_by_ticker.get(t, 0.0))
+            v_old100 = float(old100_by_ticker.get(t, 0.0))
+            v_old180 = float(old180_by_ticker.get(t, 0.0))
+
+            d30  = v_now - v_old30
+            d100 = v_now - v_old100
+            d180 = v_now - v_old180
+
             # value row with arrow + ticker (same vibe as page1 list)
             title_line = ui.tags.div(
                 {"style": "display:flex; align-items:center; gap:6px;"},
@@ -1559,13 +1567,24 @@ def server(input, output, session):
                 ui.tags.span(t, style="font-weight:800;"),
             )
 
-            # delta text (same style as page 1)
-            if abs(d) < 0.005:
-                delta_txt = ui.tags.span("→  €0.00", style="color:#666; font-weight:700; margin-left:8px;")
-            elif d > 0:
-                delta_txt = ui.tags.span(f"▲  {fmt_money(d)}", style="color:#1b7f3a; font-weight:800; margin-left:8px;")
-            else:
-                delta_txt = ui.tags.span(f"▼  {fmt_money(abs(d))}", style="color:#b00020; font-weight:800; margin-left:8px;")
+            # logic for comparisement of value between days and the icons
+            def delta_text(d):
+                if abs(d) < 0.005:
+                    return ui.tags.span("→  €0.00", style="color:#666; font-weight:700; margin-left:8px;")
+                if d > 0:
+                    return ui.tags.span(f"▲  {fmt_money(d)}", style="color:#1b7f3a; font-weight:800; margin-left:8px;")
+                return ui.tags.span(f"▼  {fmt_money(abs(d))}", style="color:#b00020; font-weight:800; margin-left:8px;")
+
+            delta30_txt  = delta_text(d30)
+            delta100_txt = delta_text(d100)
+            delta180_txt = delta_text(d180)
+
+            # arrow on the title line – choose which delta drives the arrow (usually 30d)
+            title_line = ui.tags.div(
+                {"style": "display:flex; align-items:center; gap:6px;"},
+                arrow_for_delta(d30),
+                ui.tags.span(t, style="font-weight:800;"),
+            )
 
             cards.append(
                 ui.tags.div(
@@ -1573,9 +1592,9 @@ def server(input, output, session):
                     ui.tags.p("Total Investment by Ticker (today)", class_="kpi-title"),
                     title_line,
                     ui.tags.p(fmt_money(v_now), class_="kpi-value"),
-                    ui.tags.p(ui.tags.span("vs 30 days ago"), delta_txt, class_="kpi-sub"),
-                    ui.tags.p(ui.tags.span("vs 100 days ago"), delta_txt, class_="kpi-sub"),
-                    ui.tags.p(ui.tags.span("vs 180 days ago"), delta_txt, class_="kpi-sub"),
+                    ui.tags.p(ui.tags.span("vs 30 days ago"),  delta30_txt,  class_="kpi-sub"),
+                    ui.tags.p(ui.tags.span("vs 100 days ago"), delta100_txt, class_="kpi-sub"),
+                    ui.tags.p(ui.tags.span("vs 180 days ago"), delta180_txt, class_="kpi-sub"),
                 )
             )
 
