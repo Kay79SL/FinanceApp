@@ -14,6 +14,8 @@ import re
 
 #==========================
 
+# settings for colours
+
 def color_to_rgba(c: str, alpha: float = 0.5) -> str:
     """Convert '#RRGGBB', 'rgb(r,g,b)', or 'rgba(r,g,b,a)' to rgba(..., alpha)."""
     c = str(c).strip()
@@ -36,12 +38,14 @@ def color_to_rgba(c: str, alpha: float = 0.5) -> str:
 # ============================
 # CONFIG
 # ===========================
+
+#settings for paths to github
 APP_NAME = "MyFinanceApp"
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
 
-TOP100_CSV = str(DATA_DIR / "top_1000CSV.csv")          # your Top200 cache file
+TOP100_CSV = str(DATA_DIR / "top_1000CSV.csv")          
 TICKERS_MASTER_CSV = str(DATA_DIR / "master_tickers.csv")
 
 DIVIDEND_YIELD_ASSUMPTION = 0.03  # for projections only 
@@ -54,13 +58,15 @@ CHART_START_DATE = date(2020, 1, 1)
 # ===========================
 # PATH + LOCAL STORAGE
 # ===========================
+
+#portfolio local path storage
 def portfolio_path() -> Path:
     base = Path(os.environ.get("LOCALAPPDATA", str(Path.home())))
     folder = base / APP_NAME
     folder.mkdir(parents=True, exist_ok=True)
     return folder / "portfolio.json"
 
-
+# loading and saving portfolio locally
 def load_portfolio_local() -> list[dict]:
     p = portfolio_path()
     if not p.exists():
@@ -84,8 +90,10 @@ def ensure_parent_dir(path_str: str) -> None:
 # ===========================
 # SMALL UTILITIES
 # ===========================
+
+#definition to convert to float
 def as_float(x, default=0.0) -> float:
-    """Avoid pandas FutureWarning: float(Series) is deprecated."""
+    """Avoid pandas - Warning: float(Series) is deprecated."""
     try:
         if isinstance(x, pd.Series):
             return float(x.iloc[0]) if len(x) else float(default)
@@ -97,7 +105,7 @@ def as_float(x, default=0.0) -> float:
     except Exception:
         return float(default)
 
-
+# def to clean ticker list
 def normalize_ticker_list(items) -> list[str]:
     out = []
     for x in items or []:
@@ -110,6 +118,8 @@ def normalize_ticker_list(items) -> list[str]:
 # ===========================
 # MASTER TICKERS (ensure exists BEFORE UI)
 # ===========================
+
+# loading main ticker file
 def load_master_tickers_file() -> list[str]:
     p = Path(TICKERS_MASTER_CSV)
     if not p.exists():
@@ -122,6 +132,7 @@ def load_master_tickers_file() -> list[str]:
     except Exception:
         return []
 
+#saving main ticker file
 def save_master_tickers_file(tickers: list[str]) -> None:
     ensure_parent_dir(TICKERS_MASTER_CSV)
     out = normalize_ticker_list(tickers)
@@ -141,6 +152,8 @@ MASTER_CHOICES = load_master_tickers_file()
 # ===========================
 # MUTED PALETTE (20+ series)
 # ===========================
+#choosing muted colours for better visibility in plots
+
 MUTED = [
     "#636EFA",  # blue
     "#EF553B",  # red-orange
@@ -175,7 +188,7 @@ def palette_for_n(n: int) -> list[str]:
 # ===========================
 _DIVIDENDS_CACHE: dict[str, pd.Series] = {}
 
-
+#getting div payment history and caching
 def get_dividends_series(ticker: str) -> pd.Series:
     t = str(ticker).strip().upper()
     if t in _DIVIDENDS_CACHE:
@@ -194,7 +207,7 @@ def get_dividends_series(ticker: str) -> pd.Series:
         _DIVIDENDS_CACHE[t] = pd.Series(dtype=float)
         return _DIVIDENDS_CACHE[t]
 
-
+# calculating total dividends to date
 def dividends_to_date_cash(ticker: str, purchase_date: datetime, shares: float) -> float:
     s = get_dividends_series(ticker)
     if s is None or len(s) == 0:
@@ -207,20 +220,20 @@ def dividends_to_date_cash(ticker: str, purchase_date: datetime, shares: float) 
 # Cache price-on-date lookups to avoid repeated downloads
 _PRICE_ON_DATE_CACHE: dict[tuple[str, str], float] = {}
 
+#saving price of ticker on date with caching
 def price_on_date_cached(ticker: str, dt: datetime) -> float | None:
     t = str(ticker).strip().upper()
     key = (t, dt.date().isoformat())
     if key in _PRICE_ON_DATE_CACHE:
         return _PRICE_ON_DATE_CACHE[key]
-    p = get_price_on_date(t, dt)  # uses your existing function
+    p = get_price_on_date(t, dt)  
     if p is not None:
         _PRICE_ON_DATE_CACHE[key] = float(p)
     return p
 
+
+#Actual dividends paid between purchase_date and as_of (inclusive), multiplied by shares.
 def dividends_to_date_cash_asof(ticker: str, purchase_date: datetime, shares: float, as_of: datetime) -> float:
-    """
-    Actual dividends paid between purchase_date and as_of (inclusive), multiplied by shares.
-    """
     s = get_dividends_series(ticker)
     if s is None or len(s) == 0:
         return 0.0
@@ -231,14 +244,21 @@ def dividends_to_date_cash_asof(ticker: str, purchase_date: datetime, shares: fl
         return 0.0
     return as_float(s2.sum(), 0.0) * as_float(shares, 0.0)
 
-def compute_portfolio_kpis(entries: list[dict], as_of: datetime) -> dict:
-    """
-    Returns totals:
+
+"""
+Returns totals:
       - total_investment: sum shares * price(as_of)
       - total_dividends: sum dividends from purchase→as_of
       - total_profit: sum (capital_gain(as_of) - cgt(as_of) + tax_saved + espp + dividends)
+      
+      
+    ****************** Income logic per entry: *****************  
     CGT logic: max(0, current_value*0.33 - 1070)
     """
+    
+ # main function to calculate total investment, total dividends, total profits,    
+def compute_portfolio_kpis(entries: list[dict], as_of: datetime) -> dict:
+   
     total_investment = 0.0
     total_dividends = 0.0
     total_profit = 0.0
@@ -262,29 +282,31 @@ def compute_portfolio_kpis(entries: list[dict], as_of: datetime) -> dict:
         if purchase_price <= 0:
             purchase_price = 100.0
 
-        # Value as of date
+        # Value from date
         price_asof = price_on_date_cached(ticker, as_of)
         price_asof = as_float(price_asof, default=purchase_price)
         current_value = shares * price_asof
         total_investment += current_value
 
-        # Dividends to as_of
+        # Dividends 
         divs = dividends_to_date_cash_asof(ticker, purchase_dt, shares, as_of)
         total_dividends += divs
 
-        # Income logic (same idea as simulate_investment)
+        # Income logic 
         initial_value = shares * purchase_price
         capital_gain = current_value - initial_value
 
+        # assigning tax saved and espp benefit
         tax_saved = 0.0
         espp_benefit = 0.0
         if inv_type == "Tax Reduction":
             tax_saved = initial_value * 0.40
         elif inv_type == "ESPP":
             espp_benefit = initial_value * 0.15
-
+        # CGT calculation
         cgt_asof = max(0.0, (current_value * 0.33) - 1070.0)
 
+        # total income calculation
         total_income = (capital_gain - cgt_asof) + tax_saved + espp_benefit + divs
         total_profit += total_income
 
@@ -295,13 +317,15 @@ def compute_portfolio_kpis(entries: list[dict], as_of: datetime) -> dict:
     }
 
 # ===========================
-# CAGR as-of (for KPI deltas) + 2040 prediction
+# CAGR for KPIs + 2040 prediction
 # ===========================
+
+#cached max history close series
 _HIST_CLOSE_CACHE: dict[str, pd.Series] = {}
 
 def _get_close_series_max(ticker: str) -> pd.Series:
     """
-    Download max history once and cache a 1D Close series (auto_adjusted).
+    Download max history once and cache 
     """
     t = str(ticker).strip().upper()
     if t in _HIST_CLOSE_CACHE:
@@ -326,18 +350,16 @@ def _get_close_series_max(ticker: str) -> pd.Series:
     close = close.dropna().copy()
     close.index = pd.to_datetime(close.index, errors="coerce")
     close = close.dropna()
-    # tz-naive
+   
     if getattr(close.index, "tz", None) is not None:
         close.index = close.index.tz_localize(None)
 
     _HIST_CLOSE_CACHE[t] = close
     return close
 
-
+# CAGR - compound Annual Growth Rate since 2010 up to as_of date
 def get_cagr_since_2010_asof(ticker: str, as_of: datetime) -> float:
-    """
-    CAGR from first data point in/after 2010 up to as_of date, using cached max history.
-    """
+    
     t = str(ticker).strip().upper()
     close = _get_close_series_max(t)
     if close is None or close.empty:
@@ -367,10 +389,12 @@ def get_cagr_since_2010_asof(ticker: str, as_of: datetime) -> float:
     return max(min(float(cagr), 0.5), -0.9)
 
 
+"""    Compute total investment value per ticker as of a given date:
+    sum shares * price(as_of) per ticker.
+    """
+
 def compute_ticker_investment_values(entries: list[dict], as_of: datetime) -> dict[str, float]:
-    """
-    Σ shares * price(as_of) per ticker.
-    """
+   
     totals: dict[str, float] = {}
     for e in entries or []:
         t = str(e.get("Ticker", "")).strip().upper()
@@ -379,7 +403,7 @@ def compute_ticker_investment_values(entries: list[dict], as_of: datetime) -> di
         shares = as_float(e.get("Shares"), 0.0)
 
         price_asof = price_on_date_cached(t, as_of)
-        # fallback: if price missing, try purchase price else 0
+        # fallback: if price missing, is taking purchase price or 0
         if price_asof is None:
             pp = e.get("PurchasePrice")
             price_asof = as_float(pp, 0.0)
@@ -389,12 +413,15 @@ def compute_ticker_investment_values(entries: list[dict], as_of: datetime) -> di
     return totals
 
 
-def compute_predicted_total_2040(entries: list[dict], as_of: datetime) -> float:
-    """
+# Projecting price and value for 2040
+ """
     Total predicted value in 2040 using:
       ProjectedPrice(2040) = PurchasePrice * (1 + CAGR_asof)^(2040 - PurchaseYear)
       ProjectedValue(2040) = Shares * ProjectedPrice(2040)
     """
+
+def compute_predicted_total_2040(entries: list[dict], as_of: datetime) -> float:
+   
     total = 0.0
     for e in entries or []:
         t = str(e.get("Ticker", "")).strip().upper()
@@ -431,6 +458,7 @@ def compute_predicted_total_2040(entries: list[dict], as_of: datetime) -> float:
 # ===========================
 # PRICES + SIMULATION (Planner/Summary)
 # ===========================
+# getting a stock price if missing or if weekends/holidays
 def get_price_on_date(ticker: str, date_: datetime) -> float | None:
     t = str(ticker).strip().upper()
     try:
@@ -459,7 +487,7 @@ def get_price_on_date(ticker: str, date_: datetime) -> float | None:
 
     return as_float(prices.iloc[pos], default=None)
 
-
+# calculating CAGR since 2010
 def get_cagr_since_2010(ticker: str) -> float:
     t = str(ticker).strip().upper()
     try:
@@ -487,6 +515,21 @@ def get_cagr_since_2010(ticker: str) -> float:
     cagr = (end_price / start_price) ** (1 / years) - 1
     return max(min(cagr, 0.5), -0.9)
 
+
+# -------------------------------------------------------------------
+# Core model: simulate a single investment year-by-year to a horizon year
+# Returns both: (1) time series for charts, (2) summary row for tables
+# -------------------------------------------------------------------
+
+ """
+    Simulate the value of a single investment (fixed number of shares)
+    from its purchase date to horizon_year using a constant CAGR
+    estimated from 2010.
+
+    Returns:
+    - df_years: DataFrame with columns [Ticker, Investment, Year, Value]
+    - summary: dict with aggregate metrics for the portfolio table
+    """
 
 def simulate_investment(entry: dict, horizon_year: int):
     ticker = str(entry["Ticker"]).strip().upper()
@@ -517,7 +560,8 @@ def simulate_investment(entry: dict, horizon_year: int):
 
     df_years = pd.DataFrame({"Ticker": ticker, "Investment": inv_name, "Year": years, "Value": values})
 
-    #Calculations 
+    # ------------------All Calculations ------------------------------
+    
     initial_value = shares * purchase_price
     price_today = get_price_on_date(ticker, datetime.today())
     price_today = as_float(price_today, default=purchase_price)
@@ -535,7 +579,8 @@ def simulate_investment(entry: dict, horizon_year: int):
     elif inv_type == "ESPP":
         espp_benefit = initial_value * 0.15
 
-    #cgt_today = max(0.0, (current_value_today * 0.33) - 1070.0)
+    #cgt_today = max(0.0, (current_value_today * 0.33) - 1070.0) - incorrect
+    
     total_income_to_now = (capital_gain_to_now - cgt_today) + tax_saved + espp_benefit + dividends_to_now
 
     summary = {
@@ -558,6 +603,8 @@ def simulate_investment(entry: dict, horizon_year: int):
 # ===========================
 # TOP100 TABLE HELPERS
 # ===========================
+
+# pulling top1000 csv to get the top100 companies and calculating the 6M return
 def safe_load_top100(path: str) -> pd.DataFrame:
     try:
         df = pd.read_csv(path)
@@ -593,11 +640,11 @@ def safe_load_top100(path: str) -> pd.DataFrame:
 
 
 # ===========================
-# TOP CHART: DAILY SINCE 2020 (robust close extraction)
+# TOP CHART: DAILY SINCE 2020 
 # ===========================
 _PRICE_DAILY_CACHE: dict[tuple[str, str, str], pd.DataFrame] = {}
 
-
+# helparound in case yfinance returns weird close columns
 def _close_series_from_hist(hist: pd.DataFrame) -> pd.Series:
     """
     yfinance sometimes returns:
@@ -626,7 +673,7 @@ def _close_series_from_hist(hist: pd.DataFrame) -> pd.Series:
         close = close.iloc[:, 0]
     return close.dropna()
 
-
+# getting daily close prices for a ticker between start and end date
 def get_daily_close_range(ticker: str, start_dt: date, end_dt: date) -> pd.DataFrame:
     t = str(ticker).strip().upper()
     start_dt = max(start_dt, CHART_START_DATE)
@@ -636,7 +683,7 @@ def get_daily_close_range(ticker: str, start_dt: date, end_dt: date) -> pd.DataF
     if key in _PRICE_DAILY_CACHE:
         return _PRICE_DAILY_CACHE[key]
 
-    end_plus = end_dt + timedelta(days=1)  # yfinance end is exclusive
+    end_plus = end_dt + timedelta(days=1)  # to include end date
 
     try:
         hist = yf.download(
@@ -648,15 +695,17 @@ def get_daily_close_range(ticker: str, start_dt: date, end_dt: date) -> pd.DataF
             progress=False,
             threads=False,
         )
-    except Exception:
+    except Exception: 
         hist = pd.DataFrame()
 
+    # extract close series safely
     close = _close_series_from_hist(hist)
     if close is None or len(close) == 0:
         out = pd.DataFrame({"ticker": [], "date": [], "close": []})
         _PRICE_DAILY_CACHE[key] = out
         return out
 
+# assigning date and close columns
     df = close.rename("close").reset_index()
     date_col = "Date" if "Date" in df.columns else df.columns[0]
     df = df.rename(columns={date_col: "date"})
@@ -673,14 +722,16 @@ def get_daily_close_range(ticker: str, start_dt: date, end_dt: date) -> pd.DataF
 
 
 # ===========================
-# UI: PAGE 1 (PLANNER)
+# UI: PAGE 1 
 # ===========================
+
+# UI: PAGE 1 (PORTFOLIO MANAGEMENT)
 page1_ui = ui.page_fluid(
     ui.h3("Add Investments and track the performance", style="margin:0 0 10px 0; font-weight:900;"),
-
+    # LAYOUT WITH SIDEBAR default filters
     ui.layout_sidebar(
         ui.sidebar(
-            ui.input_selectize(
+            ui.input_selectize( # dropdowqn select ticker
             "ticker",
             "Share ticker",
             choices=MASTER_CHOICES,
@@ -700,7 +751,7 @@ page1_ui = ui.page_fluid(
                     "Bonus": "Bonus (no tax/discount)",
                     "Regular": "Regular investment",
                 },
-            ),
+            ), # action buttons
             ui.input_action_button("add_inv", "Add investment"),
             ui.input_action_button("clear_all", "Clear portfolio"),
             ui.hr(),
@@ -709,7 +760,7 @@ page1_ui = ui.page_fluid(
             width=300,
         ),
 
-        # MAIN AREA
+        # MAIN AREA size of cards and plots
         ui.div(
             ui.card(
                 ui.h4("Investment Preview"),
@@ -729,8 +780,10 @@ page1_ui = ui.page_fluid(
 
 
 # ===========================
-# UI: PAGE 2 (SUMMARY)
+# UI: PAGE 2 
 # ===========================
+
+# same as page 1 but different filters and plots
 page2_ui = ui.page_fluid(
     ui.h3("Total Investment per Company", style="margin:0 0 10px 0; font-weight:900;"),
 
@@ -817,6 +870,8 @@ page2_ui = ui.page_fluid(
 # ===========================
 # UI: PAGE 3 (TOP100 & CHART)
 # ===========================
+
+#similar to page 1 but different filters and plots
 page3_ui = ui.page_fluid(
     ui.h3("New Investment opportunities and Top 100 Best Performing Companies in the past 5 years", 
           style="margin:0 0 10px 0; font-weight:900;"),
@@ -865,6 +920,8 @@ page3_ui = ui.page_fluid(
     ),
 )
 
+# theme design CSS
+
 MAIN_THEME_CSS = ui.tags.style("""
 :root{
   --sidebar-bg:#f1e7d2;      /* beige */
@@ -897,7 +954,7 @@ MAIN_THEME_CSS = ui.tags.style("""
   font-weight: 700;
 }
 
-/* ---- LEFT SIDEBAR (page_sidebar) ---- */
+/* ---- LEFT SIDEBAR  ---- */
 .sidebar{
   background: var(--sidebar-bg) !important;
   color: var(--text) !important;
@@ -925,12 +982,12 @@ MAIN_THEME_CSS = ui.tags.style("""
 h3 { font-size: 1.38rem; }
 h4 { font-size: 1.20rem; }
 
-/* Move page tabs a bit to the right */
+/* Moving page tabs a bit to the right */
 .navbar-nav{
   margin-left: 90px !important;
 }
 
-/* Leave space for footer */
+/* space for footer */
 body{
   padding-bottom: 64px;
 }
@@ -964,7 +1021,7 @@ body{
 
 
 # ===========================
-# MAIN UI
+# MAIN UI STRUCTURE
 # ===========================
 app_ui = ui.page_fluid(
     MAIN_THEME_CSS,
@@ -987,13 +1044,17 @@ app_ui = ui.page_fluid(
 
 
 # ===========================
+# SERVER LOGIC
+# ===========================
+
+# main logic for the app
 def server(input, output, session):
     portfolio = reactive.Value(load_portfolio_local())
 
     refresh_token = reactive.Value(0)
     refresh_msg = reactive.Value("")
     export_msg = reactive.Value("")
-
+# refresh button logic
     def do_refresh():
         _DIVIDENDS_CACHE.clear()
         _PRICE_DAILY_CACHE.clear()
@@ -1001,10 +1062,11 @@ def server(input, output, session):
         _HIST_CLOSE_CACHE.clear()
         refresh_token.set(refresh_token.get() + 1)
         refresh_msg.set(f"Last refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-     
+        
+     # filling company filter choices from top100 csv
     @reactive.effect
     def _fill_company_filter_choices():
-        _ = refresh_token.get()  # refresh updates choices too
+        _ = refresh_token.get()  # refresh updates choices 
         try:
             df0 = pd.read_csv(TOP100_CSV)
             if df0.empty or "Ticker" not in df0.columns:
@@ -1016,17 +1078,16 @@ def server(input, output, session):
         except Exception:
             pass
  
-       
+    # updating summary ticker choices based on portfolio entries   
     @reactive.effect
     def _update_sum_ticker_choices():
         _ = refresh_token.get()
         data = portfolio.get() or []
         tickers = sorted({(e.get("Ticker") or "").upper().strip() for e in data if e.get("Ticker")})
-        # Shiny python supports updating via ui.update_select in newer versions; if yours doesn't,
-        # tell me and I’ll switch this to output_ui approach.
+        # check if Shiny python supports updating via ui.update_select in newer versions; if not, use ui.update_selectize
         ui.update_select("sum_focus_ticker", choices=["All"] + tickers, selected="All")
 
-
+    # refresh buttons effects
     @reactive.effect
     @reactive.event(input.refresh_now)
     def _refresh_btn_1():
@@ -1065,6 +1126,7 @@ def server(input, output, session):
     # =======================
     # Page 1: add / clear
     # =======================
+    # add investment effect
     @reactive.effect
     @reactive.event(input.add_inv)
     def add_investment():
@@ -1093,6 +1155,7 @@ def server(input, output, session):
         save_portfolio_local(portfolio.get())
         refresh_token.set(refresh_token.get() + 1)
 
+    # clear portfolio effect
     @reactive.effect
     @reactive.event(input.clear_all)
     def clear_portfolio():
@@ -1103,6 +1166,7 @@ def server(input, output, session):
     # =======================
     # Page 1 outputs
     # =======================
+    
     @output
     @render.data_frame
     def portfolio_table():
@@ -1115,6 +1179,9 @@ def server(input, output, session):
         summaries = [simulate_investment(entry, horizon_year=current_year)[1] for entry in data]
         return render.DataGrid(pd.DataFrame(summaries), filters=False)
 
+    # =======================
+    # Page 1 timeline plot
+    # =======================
     
     @output
     @render_plotly
@@ -1129,7 +1196,7 @@ def server(input, output, session):
 
         horizon_year = 2040
 
-        # build df_all (your original logic)
+        # build df_all for all investments
         all_rows = [simulate_investment(entry, horizon_year=horizon_year)[0] for entry in data]
         df_all = pd.concat(all_rows, ignore_index=True)
 
@@ -1151,7 +1218,7 @@ def server(input, output, session):
 
         df_all["PurchasePrice"] = df_all["Investment"].map(inv_to_pp).fillna(0.0)
 
-        # plot
+        # plot 
         colors = palette_for_n(int(df_all["Investment"].nunique()))
         fig = px.bar(
             df_all,
@@ -1172,7 +1239,7 @@ def server(input, output, session):
             plot_bgcolor="rgba(0,0,0,0)",
             paper_bgcolor="rgba(0,0,0,0)",
         )
-
+        # hoover template
         fig.update_traces(
             hovertemplate="%{fullData.name}<br>Purchase price=€%{customdata[0]:,.0f}<br>Value=€%{y:,.0f}<extra></extra>"
         )
@@ -1210,6 +1277,9 @@ def server(input, output, session):
 
         return fig
 
+    # =======================
+    # Page 1 KPI row
+    # =======================
     
     @output
     @render.ui
@@ -1218,21 +1288,22 @@ def server(input, output, session):
         entries = portfolio.get() or []
         if not entries:
             return ui.div()
-
+        # assigning dates
         now = datetime.today()
         days_180_ago = now - timedelta(days=180)
         days_30_ago = now - timedelta(days=30)
-
+        # comparing KPIs at different dates
         now_kpi = compute_portfolio_kpis(entries, now)
         kpi_180 = compute_portfolio_kpis(entries, days_180_ago)
         kpi_30 = compute_portfolio_kpis(entries, days_30_ago)
-
+        # predicted 2040 values
         now_pred_2040 = compute_predicted_total_2040(entries, now)
         old_pred_2040 = now_pred_2040
         pred_180 = compute_predicted_total_2040(entries, days_180_ago)
         def fmt_money(x):
             return f"€{float(x):,.2f}"
 
+        # assigning icons and colors for deltas
         def delta_span(now_val, old_val):
             d = float(now_val) - float(old_val)
             if abs(d) < 0.005:
@@ -1249,6 +1320,7 @@ def server(input, output, session):
         .kpi-sub { font-size:0.8rem; color:#666; margin-top:2px; }
         """)
 
+        # KPI cards layout
         return ui.TagList(
             style,
             ui.tags.div(
@@ -1285,6 +1357,8 @@ def server(input, output, session):
     # =======================
     # Page 2: Summary filters
     # =======================
+    
+    # filtered portfolio entries based on summary filters
     @reactive.calc
     def filtered_portfolio_entries() -> list[dict]:
         _ = refresh_token.get()
@@ -1326,11 +1400,11 @@ def server(input, output, session):
             except Exception:
                 pd_dt = None
 
-            # ✅ ticker buttons filter
+            # ticker buttons filter
             if focus_ticker != "ALL" and tkr != focus_ticker:
                 continue
 
-            # ✅ dropdown type filter
+            # dropdown type filter
             if type_sel != "All" and typ != type_sel:
                 continue
 
@@ -1348,9 +1422,12 @@ def server(input, output, session):
             out.append(e)
 
         return out
-
-#total_income_to_now = (capital_gain_to_now - cgt_today) + tax_saved + espp_benefit + dividends_to_now
     
+# =======================
+#total_income_to_now = (capital_gain_to_now - cgt_today) + tax_saved + espp_benefit + dividends_to_now
+# =======================
+
+    # summary table output    
     @output
     @render.data_frame
     def summary_table():
@@ -1427,6 +1504,10 @@ def server(input, output, session):
             filters=False
         )
 
+    # =======================
+    # Page 2: Ticker buttons & KPI cards
+    # =======================
+    
     @output
     @render.ui
     def sum_ticker_buttons():
@@ -1442,6 +1523,7 @@ def server(input, output, session):
         year_sel = (input.sum_year() if hasattr(input, "sum_year") else "All") or "All"
         year_sel = str(year_sel)
 
+        # gathering tickers based on filters
         tickers = []
         for e in data:
             tkr = (e.get("Ticker") or "").upper().strip()
@@ -1475,7 +1557,7 @@ def server(input, output, session):
             ),
             id="sum_ticker_btns",
         )
-
+    # KPI cards for selected tickers
     @output
     @render.ui
     def sum_price_kpis():
@@ -1515,6 +1597,11 @@ def server(input, output, session):
 
         return ui.div(*cards, style="display:flex; gap:12px; flex-wrap:wrap; margin:10px 0 14px 0;")
 
+    # =======================
+    # Page 2: Ticker cards with investment values
+    # ======================
+    
+    # KPI cards for total investment by ticker over time
     @output
     @render.ui
     def sum_ticker_cards():
@@ -1524,6 +1611,7 @@ def server(input, output, session):
         if not entries:
             return ui.div()
 
+        # assigning dates
         now = datetime.today()
         days_30_ago = now - timedelta(days=30)
         days_100_ago = now - timedelta(days=100)
@@ -1554,6 +1642,7 @@ def server(input, output, session):
         .kpi-sub { font-size:0.8rem; color:#666; margin-top:2px; }
         """)
 
+    # building cards per ticker
         cards = []
         for t, v_now in sorted(now_by_ticker.items(), key=lambda kv: kv[1], reverse=True):
             v_old = float(old_by_ticker.get(t, 0.0))
@@ -1568,7 +1657,7 @@ def server(input, output, session):
             d100 = v_now - v_old100
             d180 = v_now - v_old180
 
-            # value row with arrow + ticker (same vibe as page1 list)
+            # value row with arrow + ticker - same as page1 list
             title_line = ui.tags.div(
                 {"style": "display:flex; align-items:center; gap:6px;"},
                 arrow_for_delta(d),
@@ -1587,7 +1676,7 @@ def server(input, output, session):
             delta100_txt = delta_text(d100)
             delta180_txt = delta_text(d180)
 
-            # arrow on the title line – choose which delta drives the arrow (usually 30d)
+            # arrow on the title line – choose which delta drives the arrow 
             title_line = ui.tags.div(
                 {"style": "display:flex; align-items:center; gap:6px;"},
                 arrow_for_delta(d30),
@@ -1611,14 +1700,14 @@ def server(input, output, session):
             ui.tags.div({"class": "kpi-wrap"}, *cards)
         )
 
-
+    # total invested + total income net cards for selected tickers
     @output
     @render.ui
     def sum_ticker_kpis():
         data = filtered_portfolio_entries()
         if not data:
             return ui.tags.div()
-
+        # calculating totals for selected tickers
         current_year = datetime.today().year
         summaries = [simulate_investment(entry, horizon_year=current_year)[1] for entry in data]
         df = pd.DataFrame(summaries)
@@ -1651,7 +1740,10 @@ def server(input, output, session):
             ),
         )
 
-
+    # =======================
+    # Page 2: Summary timeline plot
+    # =======================
+    
     @output
     @render_plotly
     def summary_timeline_plot():
@@ -1761,6 +1853,7 @@ def server(input, output, session):
     def chart_prices_df() -> pd.DataFrame:
         _ = refresh_token.get()
 
+        # getting selected tickers and date range
         selected = normalize_ticker_list(input.tickers_selected() or [])
         dr = input.chart_date()
         start = dr[0] if dr and dr[0] else CHART_START_DATE
@@ -1768,7 +1861,7 @@ def server(input, output, session):
 
         start = max(start, CHART_START_DATE)
         end = min(end, date.today())
-
+        # getting data for all selected tickers
         frames = [get_daily_close_range(t, start, end) for t in selected]
         df_all = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 
@@ -1779,7 +1872,7 @@ def server(input, output, session):
 
         return df_all
 
-    
+    # export chart data to CSV
     @reactive.effect
     @reactive.event(input.export_chart_csv)
     def _export_chart():
@@ -1791,6 +1884,7 @@ def server(input, output, session):
         df.to_csv(out_path, index=False)
         export_msg.set(f"Saved: {out_path}")
 
+    # price cards for selected tickers
     @output
     @render.ui
     def top100_price_cards():
@@ -1805,6 +1899,7 @@ def server(input, output, session):
                 return "—"
             return f"${float(x):,.2f}"
 
+        # delta badge helper to show price change if
         def delta_badge(last_val, prev_val):
             if last_val is None or prev_val is None:
                 return ui.tags.span("", style="margin-left:8px;")
@@ -1845,7 +1940,7 @@ def server(input, output, session):
 
         return ui.TagList(style, ui.tags.div({"class": "price-wrap"}, *cards))
 
-
+    # Top100 table output
     @output
     @render.data_frame
     def top100_table():
@@ -1917,7 +2012,7 @@ def server(input, output, session):
         if "Market cap" in df.columns:
             df["Market cap"] = (mcap_num / 1_000_000_000.0).map(lambda x: f"{x:,.2f}B" if pd.notna(x) else "")
 
-        # Conditional font colors ----------
+        # Conditional font colors for Change, Change %, 52 week price % Change
         styles = []
 
         if "Change" in df.columns:
@@ -1967,7 +2062,7 @@ def server(input, output, session):
 
 
 
-           
+     # Price 5Y plot output for selected tickers      
     @output
     @render_plotly
     def price_5y_plot():
@@ -1992,7 +2087,7 @@ def server(input, output, session):
 
         selected = normalize_ticker_list(input.tickers_selected() or [])
         colors = palette_for_n(len(selected))
-
+        # plotting 
         fig = go.Figure()
         for i, t in enumerate(selected):
             df_t = df_all[df_all["ticker"] == t].sort_values("date")
@@ -2027,7 +2122,7 @@ def server(input, output, session):
             legend_title_text="Ticker",
             hovermode="x unified",
 
-            #remove background
+            #removing background
             plot_bgcolor="rgba(0,0,0,0)",   # inside plot area
             paper_bgcolor="rgba(0,0,0,0)",  # outside plot area
         )
@@ -2035,6 +2130,7 @@ def server(input, output, session):
         fig.update_xaxes(type="date", rangeslider=dict(visible=True))
         return fig
     
+    # Company detail table output
     @output
     @render.data_frame
     def company_detail_table():
@@ -2051,7 +2147,6 @@ def server(input, output, session):
 
         tickers = df["Ticker"].astype(str).str.upper().tolist()
 
-        # keep it responsive (increase if you want)
         N = min(20, len(tickers))
 
         rows = []
@@ -2089,7 +2184,8 @@ def server(input, output, session):
 
     
 # ===========================
-
+# App initialization
+# ===========================
 
 app = App(app_ui, server)
 
