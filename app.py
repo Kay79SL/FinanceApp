@@ -810,7 +810,7 @@ page2_ui = ui.page_fluid(
 # UI: PAGE 3 (TOP100 & CHART)
 # ===========================
 page3_ui = ui.page_fluid(
-    ui.h3("New Investment opportunities and Top 100 Best Performing Companies", 
+    ui.h3("New Investment opportunities and Top 100 Best Performing Companies in the past 5 years", 
           style="margin:0 0 10px 0; font-weight:900;"),
     ui.layout_sidebar(
         ui.sidebar(
@@ -1004,7 +1004,7 @@ def server(input, output, session):
             choices = sorted(
                 df0["Ticker"].astype(str).str.upper().str.strip().dropna().unique().tolist()
             )
-            ui.update_selectize("company_filter", choices=choices)
+            ui.update_selectize("company_filter", choices=choices, selected="", server=True)
         except Exception:
             pass
  
