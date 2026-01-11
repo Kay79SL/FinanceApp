@@ -1,0 +1,12 @@
+{
+    "https://api.shinyapps.io": {
+        "server_url": "https://api.shinyapps.io",
+        "filename": "F:\\Apps\\FinanceApp",
+        "app_url": "https://lavaah.shinyapps.io/financeapp1/",
+        "app_id": "16404680",
+        "app_guid": null,
+        "title": "FinanceApp",
+        "app_mode": "python-shiny",
+        "app_store_version": 1
+    }
+}
