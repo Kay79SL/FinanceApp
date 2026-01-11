@@ -680,7 +680,14 @@ page1_ui = ui.page_fluid(
 
     ui.layout_sidebar(
         ui.sidebar(
-            ui.input_text("ticker", "Share ticker", value="ABT"),
+            ui.input_selectize(
+            "ticker",
+            "Share ticker",
+            choices=MASTER_CHOICES,
+            selected="ABT" if "ABT" in MASTER_CHOICES else (MASTER_CHOICES[0] if MASTER_CHOICES else ""),
+            multiple=False,
+            options={"placeholder": "Type or pick ticker (e.g. LLY, ABT...)", "create": True, "persist": False},
+            ),
             ui.input_numeric("shares", "Number of shares", value=163, min=1),
             ui.input_date("purchase_date", "Purchase date", value="2021-05-21"),
             ui.input_numeric("purchase_price", "Purchase price per share (optional)", value=None, min=0),
