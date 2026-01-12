@@ -72,7 +72,7 @@ The app supports multiple “investment types”:
 - **Tax Reduction** (40% tax saved)
 - **Bonus**
 
-It also includes a simplified CGT-style calculation:
+It also includes CGT calculation:
 - `CGT ≈ max(0, current_value * 0.33 - 1070)`
 
 ### CAGR safeguards (used for projections)
@@ -85,4 +85,5 @@ It also includes a simplified CGT-style calculation:
 ---
 
 ## Repository layout expected
+
 
