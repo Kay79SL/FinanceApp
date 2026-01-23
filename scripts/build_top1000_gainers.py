@@ -26,7 +26,7 @@ def read_master_tickers() -> set[str]:
 
 
 def pick_screener_id() -> str:
-    """Try to use 52-week gainers first; fallback to close equivalents."""
+    """Using 52-week gainers."""
     s = Screener()
     avail = set(s.available_screeners)
     for cand in ["52_week_gainers", "recent_52_week_highs", "day_gainers", "gainers"]:
@@ -37,7 +37,7 @@ def pick_screener_id() -> str:
 
 
 def to_pct(x):
-    """Yahoo sometimes returns percent as decimal (0.12) or percent (12). Normalize to percent."""
+    """Yahoo sometimes returns percent as decimal (0.12) or percent (12). Normalising to percent."""
     if pd.isna(x):
         return None
     try:
@@ -129,7 +129,7 @@ def main():
     df["Volume"] = df.get("regularMarketVolume").apply(safe_num)
     df["Market cap"] = df.get("marketCap").apply(safe_num)
 
-    # 52-week change can appear under different keys; try a few
+    # 52-week change can appear under different keys
     if "fiftyTwoWeekChangePercent" in df.columns:
         df["52 week price % Change"] = df["fiftyTwoWeekChangePercent"].apply(to_pct)
     elif "fiftyTwoWeekChange" in df.columns:
@@ -137,11 +137,11 @@ def main():
     else:
         df["52 week price % Change"] = None
 
-    # Optional: keep only tickers from your master universe (FAST filtering)
+    # only tickers from your master universe
     if master:
         df = df[df["Ticker"].isin(master)].copy()
 
-    # Enrich Country/Region (batched)
+    # Country/Region 
     meta = enrich_country_region(df["Ticker"].tolist())
     df = df.merge(meta, on="Ticker", how="left")
 
