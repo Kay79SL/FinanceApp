@@ -32,7 +32,7 @@ def pick_screener_id() -> str:
     for cand in ["52_week_gainers", "recent_52_week_highs", "day_gainers", "gainers"]:
         if cand in avail:
             return cand
-    # last resort: just use one known to exist from yahooquery docs
+
     return "recent_52_week_highs"
 
 
@@ -59,8 +59,8 @@ def safe_num(x):
 
 def enrich_country_region(tickers: list[str]) -> pd.DataFrame:
     """
-    Batch fetch asset_profile for country/region.
-    Returns df: Ticker, Country, Region
+    fetch asset_profile for country/region.
+    df: Ticker, Country, Region
     """
     if not tickers:
         return pd.DataFrame(columns=["Ticker", "Country", "Region"])
