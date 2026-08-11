@@ -16,6 +16,7 @@ OUT_CSV = DATA / "forbes_top100.csv"
 
 BAND_LOW, BAND_HIGH = 20.0, 30.0   # 52-week change band of interest
 RANGE_WEEK_MIN = 4.0               # a "swing week" = weekly high-low range >= 4%
+RANGE_MONTH_MIN = 10.0             # a "swing month" = monthly high-low range >= 10%
 
 
 def safe_num(x):
@@ -35,8 +36,9 @@ def main() -> None:
     detail_mod = t.summary_detail
     stats_mod = t.key_stats
 
-    # Weekly history for range metrics (1 year, weekly bars)
+    # Weekly + monthly history for range metrics
     hist = t.history(period="1y", interval="1wk")
+    hist_m = t.history(period="1y", interval="1mo")
 
     rows = []
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -78,6 +80,17 @@ def main() -> None:
         except Exception:
             pass
 
+        avg_mo_range = None
+        swing_months = None
+        try:
+            hm = hist_m.loc[tk]
+            if len(hm) >= 6:
+                rng_m = (hm["high"] - hm["low"]) / hm["open"] * 100.0
+                avg_mo_range = round(float(rng_m.mean()), 2)
+                swing_months = int((rng_m >= RANGE_MONTH_MIN).sum())
+        except Exception:
+            pass
+
         off_high = None
         if price is not None and hi52:
             off_high = round((price / hi52 - 1) * 100.0, 1)
@@ -103,6 +116,8 @@ def main() -> None:
             "Forward PE": pe_f,
             "Avg Weekly Range %": avg_wk_range,
             f"Weeks >= {RANGE_WEEK_MIN:.0f}%": swing_weeks,
+            "Avg Monthly Range %": avg_mo_range,
+            f"Months >= {RANGE_MONTH_MIN:.0f}%": swing_months,
         })
 
     out = pd.DataFrame(rows)
