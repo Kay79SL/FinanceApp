@@ -1,0 +1,101 @@
+Rank,Ticker,Name,Sector
+1,JPM,JPMorgan Chase,Financials
+2,AMZN,Amazon,Technology
+3,BRK-B,Berkshire Hathaway,Financials
+4,GOOGL,Alphabet,Technology
+5,MSFT,Microsoft,Technology
+6,BAC,Bank of America,Financials
+7,AAPL,Apple,Technology
+8,XOM,ExxonMobil,Energy
+9,WFC,Wells Fargo,Financials
+10,UNH,UnitedHealth,Healthcare
+11,NVDA,Nvidia,Technology
+12,META,Meta Platforms,Technology
+13,C,Citigroup,Financials
+14,GS,Goldman Sachs,Financials
+15,MS,Morgan Stanley,Financials
+16,CVX,Chevron,Energy
+17,WMT,Walmart,Consumer
+18,V,Visa,Financials
+19,MA,Mastercard,Financials
+20,HD,Home Depot,Consumer
+21,JNJ,Johnson & Johnson,Healthcare
+22,LLY,Eli Lilly,Healthcare
+23,ABBV,AbbVie,Healthcare
+24,MRK,Merck,Healthcare
+25,PFE,Pfizer,Healthcare
+26,CI,Cigna,Healthcare
+27,ELV,Elevance Health,Healthcare
+28,CVS,CVS Health,Healthcare
+29,MCK,McKesson,Healthcare
+30,COR,Cencora,Healthcare
+31,CAH,Cardinal Health,Healthcare
+32,COST,Costco,Consumer
+33,PG,Procter & Gamble,Consumer
+34,ORCL,Oracle,Technology
+35,IBM,IBM,Technology
+36,AVGO,Broadcom,Technology
+37,CSCO,Cisco,Technology
+38,TSLA,Tesla,Consumer
+39,INTC,Intel,Technology
+40,AMD,AMD,Technology
+41,QCOM,Qualcomm,Technology
+42,TXN,Texas Instruments,Technology
+43,MU,Micron,Technology
+44,CRM,Salesforce,Technology
+45,ADBE,Adobe,Technology
+46,NFLX,Netflix,Technology
+47,CMCSA,Comcast,Media
+48,DIS,Disney,Media
+49,VZ,Verizon,Telecom
+50,T,AT&T,Telecom
+51,TMUS,T-Mobile US,Telecom
+52,SCHW,Charles Schwab,Financials
+53,BLK,BlackRock,Financials
+54,AXP,American Express,Financials
+55,USB,US Bancorp,Financials
+56,PNC,PNC Financial,Financials
+57,TFC,Truist,Financials
+58,COF,Capital One,Financials
+59,BK,BNY Mellon,Financials
+60,PGR,Progressive,Insurance
+61,CB,Chubb,Insurance
+62,TRV,Travelers,Insurance
+63,ALL,Allstate,Insurance
+64,MET,MetLife,Insurance
+65,PRU,Prudential Financial,Insurance
+66,AIG,AIG,Insurance
+67,COP,ConocoPhillips,Energy
+68,PSX,Phillips 66,Energy
+69,MPC,Marathon Petroleum,Energy
+70,VLO,Valero,Energy
+71,EOG,EOG Resources,Energy
+72,OXY,Occidental,Energy
+73,SLB,Schlumberger,Energy
+74,GE,GE Aerospace,Industrials
+75,CAT,Caterpillar,Industrials
+76,DE,Deere,Industrials
+77,RTX,RTX,Industrials
+78,BA,Boeing,Industrials
+79,LMT,Lockheed Martin,Industrials
+80,NOC,Northrop Grumman,Industrials
+81,HON,Honeywell,Industrials
+82,UNP,Union Pacific,Industrials
+83,UPS,UPS,Industrials
+84,FDX,FedEx,Industrials
+85,ETN,Eaton,Industrials
+86,KO,Coca-Cola,Consumer
+87,PEP,PepsiCo,Consumer
+88,PM,Philip Morris,Consumer
+89,MO,Altria,Consumer
+90,MDLZ,Mondelez,Consumer
+91,LOW,Lowe's,Consumer
+92,TGT,Target,Consumer
+93,NEE,NextEra Energy,Utilities
+94,DUK,Duke Energy,Utilities
+95,SO,Southern Company,Utilities
+96,GILD,Gilead,Healthcare
+97,BMY,Bristol Myers Squibb,Healthcare
+98,AMGN,Amgen,Healthcare
+99,TMO,Thermo Fisher,Healthcare
+100,HCA,HCA Healthcare,Healthcare
