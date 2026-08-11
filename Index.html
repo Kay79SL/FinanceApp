@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Forbes 100 — Kasia's Screener</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;800&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F2EBDD; --panel:#FBF7EE; --panel2:#EFE6D2; --line:#DCD2BC;
+  --ink:#1F3251; --muted:#6E7383; --gain:#3E8E63; --loss:#C25B4A;
+  --mustard:#C9971C; --navy:#1F3251; --blue:#3F6CA6;
+  --mono:'IBM Plex Mono',ui-monospace,monospace; --sans:'Sora',system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;-webkit-font-smoothing:antialiased}
+header{position:sticky;top:0;z-index:30;background:rgba(242,235,221,.95);backdrop-filter:blur(6px);padding:14px 16px 0;border-bottom:2px solid var(--navy)}
+h1{font-size:17px;font-weight:800;letter-spacing:.2px;color:var(--navy)}
+h1 span{color:var(--mustard)}
+.sub{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:2px}
+.topbar{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+button.refresh{background:var(--navy);color:#F6F1E4;border:none;border-radius:8px;padding:8px 12px;font-family:var(--sans);font-weight:600;font-size:12px;cursor:pointer}
+button.refresh:active{transform:scale(.97)}
+nav{display:flex;gap:2px;margin-top:12px}
+nav button{flex:1;background:none;border:none;color:var(--muted);font-family:var(--sans);font-weight:600;font-size:13px;padding:10px 4px;cursor:pointer;border-bottom:3px solid transparent}
+nav button.on{color:var(--navy);border-bottom-color:var(--mustard)}
+main{padding:14px 12px 60px;max-width:1100px;margin:0 auto}
+.note{font-size:12px;color:var(--muted);line-height:1.5;margin:6px 2px 14px}
+.rb{position:relative;height:6px;border-radius:3px;background:linear-gradient(90deg,var(--loss),var(--mustard) 50%,var(--gain));opacity:.85}
+.rb i{position:absolute;top:-3px;width:2px;height:12px;background:var(--navy);border-radius:1px;box-shadow:0 0 0 2px var(--panel)}
+.rb-lab{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:3px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(31,50,81,.06)}
+.card .row1{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px}
+.tk{font-weight:800;font-size:15px;color:var(--navy)}
+.tk small{color:var(--muted);font-weight:400;font-size:11px;margin-left:6px}
+.px{font-family:var(--mono);font-weight:600;font-size:15px}
+.chg{font-family:var(--mono);font-size:12px}
+.up{color:var(--gain)}.dn{color:var(--loss)}
+.stats{display:flex;flex-wrap:wrap;gap:10px 16px;margin:8px 0 10px}
+.stat{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.stat b{color:var(--ink);font-weight:600;display:block;font-size:12px}
+.badges{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.badge{font-size:10px;font-weight:600;padding:3px 8px;border-radius:20px;border:1px solid var(--line);color:var(--muted);background:var(--panel2)}
+.badge.lly{border-color:var(--mustard);color:#8A6510;background:#F6ECD2}
+.badge.band{border-color:var(--blue);color:var(--blue);background:#E7EEF7}
+.badge.cheap{border-color:var(--gain);color:var(--gain);background:#E5F0EA}
+.badge.rich{border-color:var(--loss);color:var(--loss);background:#F6E6E2}
+.chips{display:flex;gap:6px;overflow-x:auto;padding:2px 0 8px;-webkit-overflow-scrolling:touch}
+.chip{white-space:nowrap;background:var(--panel);border:1px solid var(--line);color:var(--muted);border-radius:20px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer}
+.chip.on{background:var(--navy);color:#F6F1E4;border-color:var(--navy)}
+.frow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.frow select{flex:1;min-width:110px;background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:8px;font-family:var(--sans);font-size:12px;font-weight:600}
+input.search{width:100%;background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:9px 12px;font-family:var(--mono);font-size:13px;margin-bottom:10px}
+input.search::placeholder{color:var(--muted)}
+.twrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;-webkit-overflow-scrolling:touch;background:var(--panel)}
+table{border-collapse:collapse;width:100%;min-width:980px;font-family:var(--mono);font-size:12px}
+th,td{padding:8px 10px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
+th{position:sticky;top:0;background:var(--navy);color:#F6F1E4;font-weight:600;cursor:pointer;user-select:none;font-size:11px}
+th:first-child,td:first-child{position:sticky;left:0;background:var(--panel);text-align:left;font-weight:600;color:var(--navy)}
+th:first-child{background:var(--navy);color:#F6F1E4;z-index:2}
+tr:hover td{background:#F6EFDF}
+td.sec{color:var(--muted);text-align:left;font-size:11px}
+.detail{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 16px;margin-top:12px;box-shadow:0 1px 4px rgba(31,50,81,.08)}
+.detail h2{font-size:22px;font-weight:800;color:var(--navy)}
+.detail .big{font-family:var(--mono);font-size:26px;font-weight:600;margin:4px 0 2px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;margin:16px 0}
+.g{background:var(--panel2);border-radius:10px;padding:10px}
+.g small{display:block;color:var(--muted);font-size:10px;margin-bottom:3px;font-family:var(--sans);font-weight:600}
+.g b{font-family:var(--mono);font-size:14px;font-weight:600;color:var(--ink)}
+.links{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.links a{background:var(--navy);color:#F6F1E4;text-decoration:none;padding:8px 12px;border-radius:8px;font-size:12px;font-weight:600}
+.read{font-size:12.5px;line-height:1.55;color:var(--ink);margin-top:14px;border-left:3px solid var(--mustard);padding-left:10px;background:#F8F2E4;padding:10px 12px;border-radius:0 8px 8px 0}
+.err{background:#F6E6E2;border:1px solid var(--loss);border-radius:10px;padding:12px;font-size:12px;line-height:1.5;margin-top:12px}
+.load{color:var(--muted);font-family:var(--mono);font-size:12px;padding:30px;text-align:center}
+@media(min-width:700px){ .cards{display:grid;grid-template-columns:1fr 1fr;gap:10px} .card{margin-bottom:0} }
+</style>
+</head>
+<body>
+<header>
+  <div class="topbar">
+    <div>
+      <h1>Forbes 100 <span>screener</span></h1>
+      <div class="sub" id="asof">loading…</div>
+    </div>
+    <button class="refresh" onclick="loadData(true)">↻ Refresh</button>
+  </div>
+  <nav>
+    <button id="nav0" class="on" onclick="go(0)">Top 20</button>
+    <button id="nav1" onclick="go(1)">Ticker</button>
+    <button id="nav2" onclick="go(2)">All 100</button>
+  </nav>
+</header>
+<main id="main"><div class="load">Fetching latest pipeline data…</div></main>
+
+<script>
+const CSV_URL = "https://raw.githubusercontent.com/Kay79SL/FinanceApp/main/data/forbes_top100.csv";
+let DATA=[], PAGE=0, sortKey="rank", sortAsc=true, q="", selTk=null;
+let F={chip:"all",sector:"",pe:"",wk:"",mo:"",chgMin:"",chgMax:"",off:"",price:""};
+
+function parseCSV(text){
+  const rows=[]; let row=[],cur="",inQ=false;
+  for(let i=0;i<text.length;i++){const c=text[i];
+    if(inQ){ if(c==='"'){ if(text[i+1]==='"'){cur+='"';i++;} else inQ=false; } else cur+=c; }
+    else if(c==='"') inQ=true;
+    else if(c===','){row.push(cur);cur="";}
+    else if(c==='\n'){row.push(cur);rows.push(row);row=[];cur="";}
+    else if(c!=='\r') cur+=c;
+  }
+  if(cur!==""||row.length){row.push(cur);rows.push(row);}
+  const head=rows.shift();
+  return rows.filter(r=>r.length>=head.length).map(r=>{
+    const o={}; head.forEach((h,i)=>o[h.trim()]=r[i]); return o;
+  });
+}
+const num=v=>{const n=parseFloat(v);return isNaN(n)?null:n;};
+const fmt=(v,d=1)=>v==null?"—":v.toFixed(d);
+const money=v=>v==null?"—":"$"+v.toLocaleString("en-US",{maximumFractionDigits:2});
+
+function enrich(r){
+  r._price=num(r["Price"]); r._chg=num(r["Change 12m %"]);
+  r._hi=num(r["52w High"]); r._lo=num(r["52w Low"]);
+  r._off=num(r["% off 52w High"]); r._pet=num(r["Trailing PE"]); r._pef=num(r["Forward PE"]);
+  r._wk=num(r["Avg Weekly Range %"]); r._wkN=num(r["Weeks >= 4%"]);
+  r._mo=num(r["Avg Monthly Range %"]); r._moN=num(r["Months >= 10%"]);
+  r._rank=num(r["Rank"]);
+  r._range=(r._hi&&r._lo)?(r._hi-r._lo)/r._lo*100:null;
+  r._pos=(r._price&&r._hi&&r._lo&&r._hi>r._lo)?(r._price-r._lo)/(r._hi-r._lo)*100:null;
+  r._band=(r._chg!=null&&r._chg>=20&&r._chg<=30);
+  r._lly=(r._chg!=null&&Math.abs(r._chg)<=15&&r._wk!=null&&r._wk>=4.5);
+  r._above200=r._price!=null&&r._price>200;
+  return r;
+}
+
+async function loadData(){
+  try{
+    const res=await fetch(CSV_URL+"?t="+Date.now(),{cache:"no-store"});
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    DATA=parseCSV(await res.text()).map(enrich);
+    document.getElementById("asof").textContent="pipeline run: "+(DATA[0]?DATA[0]["AsOf"]:"?")+" · "+DATA.length+" tickers";
+    render();
+  }catch(e){
+    document.getElementById("main").innerHTML='<div class="err"><b>Could not load data.</b><br>'+e.message+'<br><br>Check that data/forbes_top100.csv exists on main and you are online. It refreshes each time the GitHub Action runs.</div>';
+  }
+}
+function go(p){PAGE=p;for(let i=0;i<3;i++)document.getElementById("nav"+i).classList.toggle("on",i===p);render();}
+
+function rangeBar(r){
+  if(r._pos==null)return"";
+  return '<div class="rb"><i style="left:'+r._pos.toFixed(1)+'%"></i></div><div class="rb-lab"><span>'+money(r._lo)+'</span><span>'+money(r._hi)+'</span></div>';
+}
+function badges(r){
+  let b="";
+  if(r._lly)b+='<span class="badge lly">LLY profile</span>';
+  if(r._band)b+='<span class="badge band">20–30% band</span>';
+  if(r._pet!=null&&r._pet<16)b+='<span class="badge cheap">P/E '+fmt(r._pet,1)+'</span>';
+  if(r._pet!=null&&r._pet>40)b+='<span class="badge rich">P/E '+fmt(r._pet,0)+'</span>';
+  return b?'<div class="badges">'+b+'</div>':"";
+}
+function card(r){
+  const cls=r._chg>=0?"up":"dn",sign=r._chg>=0?"+":"";
+  return '<div class="card" onclick="openTicker(\''+r.Ticker+'\')">'+
+   '<div class="row1"><div class="tk">'+r.Ticker+'<small>'+r.Name+'</small></div><div class="px">'+money(r._price)+'</div></div>'+
+   '<div class="chg '+cls+'">'+sign+fmt(r._chg)+'% · 12m</div>'+
+   '<div class="stats">'+
+    '<div class="stat">wk range<b>'+fmt(r._wk)+'%</b></div>'+
+    '<div class="stat">mo range<b>'+(r._mo!=null?fmt(r._mo)+"%":"—")+'</b></div>'+
+    '<div class="stat">swing wks<b>'+(r._wkN!=null?r._wkN+"/52":"—")+'</b></div>'+
+    '<div class="stat">off high<b>'+fmt(r._off)+'%</b></div>'+
+   '</div>'+rangeBar(r)+badges(r)+'</div>';
+}
+function applyFilters(rows){
+  if(F.chip==="band")rows=rows.filter(r=>r._band);
+  if(F.chip==="lly")rows=rows.filter(r=>r._lly);
+  if(F.sector)rows=rows.filter(r=>r.Sector===F.sector);
+  if(F.price==="over")rows=rows.filter(r=>r._above200);
+  if(F.price==="under")rows=rows.filter(r=>!r._above200);
+  if(F.pe)rows=rows.filter(r=>r._pet!=null&&r._pet<=+F.pe);
+  if(F.wk)rows=rows.filter(r=>r._wk!=null&&r._wk>=+F.wk);
+  if(F.mo)rows=rows.filter(r=>r._mo!=null&&r._mo>=+F.mo);
+  if(F.chgMin!=="")rows=rows.filter(r=>r._chg!=null&&r._chg>=+F.chgMin);
+  if(F.chgMax!=="")rows=rows.filter(r=>r._chg!=null&&r._chg<=+F.chgMax);
+  if(F.off)rows=rows.filter(r=>r._off!=null&&r._off>=+F.off);
+  if(q)rows=rows.filter(r=>(r.Ticker+" "+r.Name).toLowerCase().includes(q.toLowerCase()));
+  return rows;
+}
+function setF(k,v){F[k]=v;render();}
+
+function render(){
+  const m=document.getElementById("main");
+  if(!DATA.length){m.innerHTML='<div class="load">No data.</div>';return;}
+  if(PAGE===0){
+    const top=DATA.filter(r=>r._rank!=null).sort((a,b)=>a._rank-b._rank).slice(0,20);
+    m.innerHTML='<p class="note">Top 20 by Forbes composite rank. Marker mid-bar + small 12m change = the profile you hunt. Tap a card for detail.</p><div class="cards">'+top.map(card).join("")+'</div>';
+  }
+  else if(PAGE===1){
+    const r=DATA.find(x=>x.Ticker===selTk)||null;
+    m.innerHTML='<p class="note">Pipeline data refreshes when your GitHub Action runs. Links open live Yahoo pages for anything newer.</p>'+
+      '<input class="search" list="tks" placeholder="Type a ticker… e.g. HCA" value="'+(selTk||"")+'" onchange="openTicker(this.value.toUpperCase())">'+
+      '<datalist id="tks">'+DATA.map(x=>'<option value="'+x.Ticker+'">'+x.Name+'</option>').join("")+'</datalist>'+
+      (r?detail(r):'<div class="load">Pick a ticker above.</div>');
+  }
+  else{
+    const sectors=[...new Set(DATA.map(r=>r.Sector))].sort();
+    let rows=applyFilters(DATA.slice());
+    rows.sort((a,b)=>{
+      const A=a["_"+sortKey],B=b["_"+sortKey];
+      if(A==null)return 1;if(B==null)return -1;
+      return sortAsc?A-B:B-A;
+    });
+    const cols=[["rank","#"],["price","Price"],["chg","12m %"],["range","52w rng %"],["wk","Wk rng %"],["wkN","Wks≥4%"],["mo","Mo rng %"],["moN","Mo≥10%"],["off","Off high"],["pet","P/E t"],["pef","P/E f"]];
+    m.innerHTML='<input class="search" placeholder="Search ticker or name…" value="'+q+'" oninput="q=this.value;render()">'+
+     '<div class="chips">'+[["all","All"],["lly","LLY profile"],["band","20–30% band"]].map(c=>'<span class="chip'+(F.chip===c[0]?" on":"")+'" onclick="setF(\'chip\',\''+c[0]+'\')">'+c[1]+'</span>').join("")+'</div>'+
+     '<div class="frow">'+
+      '<select onchange="setF(\'sector\',this.value)"><option value="">Sector: all</option>'+sectors.map(s=>'<option'+(F.sector===s?" selected":"")+'>'+s+'</option>').join("")+'</select>'+
+      '<select onchange="setF(\'price\',this.value)"><option value="">Price: any</option><option value="over"'+(F.price==="over"?" selected":"")+'>Over $200</option><option value="under"'+(F.price==="under"?" selected":"")+'>Under $200</option></select>'+
+      '<select onchange="setF(\'pe\',this.value)"><option value="">P/E: any</option><option'+(F.pe==="15"?" selected":"")+' value="15">≤ 15</option><option'+(F.pe==="20"?" selected":"")+' value="20">≤ 20</option><option'+(F.pe==="30"?" selected":"")+' value="30">≤ 30</option></select>'+
+     '</div><div class="frow">'+
+      '<select onchange="setF(\'wk\',this.value)"><option value="">Wk range: any</option><option'+(F.wk==="4"?" selected":"")+' value="4">≥ 4%</option><option'+(F.wk==="5"?" selected":"")+' value="5">≥ 5%</option><option'+(F.wk==="6"?" selected":"")+' value="6">≥ 6%</option></select>'+
+      '<select onchange="setF(\'mo\',this.value)"><option value="">Mo range: any</option><option'+(F.mo==="8"?" selected":"")+' value="8">≥ 8%</option><option'+(F.mo==="10"?" selected":"")+' value="10">≥ 10%</option><option'+(F.mo==="15"?" selected":"")+' value="15">≥ 15%</option></select>'+
+      '<select onchange="setF(\'chgMin\',this.value)"><option value="">12m min: any</option><option'+(F.chgMin==="-15"?" selected":"")+' value="-15">≥ -15%</option><option'+(F.chgMin==="0"?" selected":"")+' value="0">≥ 0%</option><option'+(F.chgMin==="20"?" selected":"")+' value="20">≥ 20%</option></select>'+
+      '<select onchange="setF(\'chgMax\',this.value)"><option value="">12m max: any</option><option'+(F.chgMax==="15"?" selected":"")+' value="15">≤ 15%</option><option'+(F.chgMax==="30"?" selected":"")+' value="30">≤ 30%</option><option'+(F.chgMax==="60"?" selected":"")+' value="60">≤ 60%</option></select>'+
+      '<select onchange="setF(\'off\',this.value)"><option value="">Off high: any</option><option'+(F.off==="-10"?" selected":"")+' value="-10">Within 10%</option><option'+(F.off==="-20"?" selected":"")+' value="-20">Within 20%</option></select>'+
+     '</div>'+
+     '<div class="twrap"><table><thead><tr><th onclick="setSort(\'rank\')">Ticker</th><th>Sector</th>'+
+      cols.map(c=>'<th onclick="setSort(\''+c[0]+'\')">'+c[1]+(sortKey===c[0]?(sortAsc?" ↑":" ↓"):"")+'</th>').join("")+
+     '</tr></thead><tbody>'+
+      rows.map(r=>'<tr onclick="openTicker(\''+r.Ticker+'\')"><td>'+r.Ticker+'</td><td class="sec">'+r.Sector+'</td>'+
+       '<td>'+(r._rank??"—")+'</td><td>'+money(r._price)+'</td>'+
+       '<td class="'+(r._chg>=0?"up":"dn")+'">'+fmt(r._chg)+'</td>'+
+       '<td>'+fmt(r._range)+'</td><td>'+fmt(r._wk)+'</td><td>'+(r._wkN??"—")+'</td>'+
+       '<td>'+fmt(r._mo)+'</td><td>'+(r._moN??"—")+'</td>'+
+       '<td>'+fmt(r._off)+'</td><td>'+fmt(r._pet)+'</td><td>'+fmt(r._pef)+'</td></tr>').join("")+
+     '</tbody></table></div>'+
+     '<p class="note">'+rows.length+' shown · tap headers to sort · tap a row for detail. Mo columns fill after the monthly-range script runs.</p>';
+  }
+}
+function setSort(k){if(sortKey===k)sortAsc=!sortAsc;else{sortKey=k;sortAsc=(k==="rank");}render();}
+function openTicker(tk){selTk=tk;go(1);}
+
+function detail(r){
+  const cls=r._chg>=0?"up":"dn",sign=r._chg>=0?"+":"";
+  const y="https://finance.yahoo.com/quote/"+encodeURIComponent(r.Ticker);
+  let read="";
+  if(r._lly)read+="Matches your LLY profile: only "+sign+fmt(r._chg)+"% net over 12 months but a "+fmt(r._range)+"% total range, swinging "+fmt(r._wk)+"% in a typical week ("+(r._wkN??"?")+" of 52 weeks over 4%). ";
+  else if(r._band)read+="In the 20–30% band: steady 12-month gain without rocket-ship risk. ";
+  else if(r._chg!=null&&r._chg>60)read+="Momentum name — big 12-month run; check the peak-EPS trap before assuming the low forward P/E is cheap. ";
+  if(r._off!=null&&r._off<-20)read+="Currently "+fmt(r._off)+"% below its high — part of the range came from a fall, so check whether swings are oscillation or decline. ";
+  if(r._pet!=null&&r._pet<16)read+="Trailing P/E of "+fmt(r._pet)+" is below the market's ~20× — pessimism is priced in.";
+  else if(r._pet!=null&&r._pet>40)read+="Trailing P/E of "+fmt(r._pet,0)+" is well above the market — priced for strong growth.";
+  return '<div class="detail"><h2>'+r.Ticker+' <small style="font-size:13px;color:var(--muted);font-weight:400">'+r.Name+' · '+r.Sector+' · Forbes #'+(r._rank??"?")+'</small></h2>'+
+   '<div class="big">'+money(r._price)+' <span class="chg '+cls+'" style="font-size:14px">'+sign+fmt(r._chg)+'% 12m</span></div>'+
+   rangeBar(r)+
+   '<div class="grid">'+
+    g("52w range",fmt(r._range)+"%")+g("Off 52w high",fmt(r._off)+"%")+
+    g("Avg weekly range",fmt(r._wk)+"%")+g("Weeks ≥4%",(r._wkN??"—")+"/52")+
+    g("Avg monthly range",r._mo!=null?fmt(r._mo)+"%":"—")+g("Months ≥10%",r._moN!=null?r._moN+"/12":"—")+
+    g("Trailing P/E",fmt(r._pet))+g("Forward P/E",fmt(r._pef))+
+    g("52w high",money(r._hi))+g("52w low",money(r._lo))+
+   '</div>'+badges(r)+
+   (read?'<div class="read">'+read+'</div>':"")+
+   '<div class="links">'+
+    '<a target="_blank" rel="noopener" href="'+y+'">Yahoo quote</a>'+
+    '<a target="_blank" rel="noopener" href="'+y+'/chart">Chart</a>'+
+    '<a target="_blank" rel="noopener" href="'+y+'/news">News</a>'+
+    '<a target="_blank" rel="noopener" href="'+y+'/key-statistics">Statistics</a>'+
+    '<a target="_blank" rel="noopener" href="https://www.google.com/search?q='+encodeURIComponent(r.Name+" stock news")+'&tbm=nws">Google news</a>'+
+   '</div></div>';
+}
+const g=(k,v)=>'<div class="g"><small>'+k+'</small><b>'+v+'</b></div>';
+loadData();
+</script>
+</body>
+</html>
